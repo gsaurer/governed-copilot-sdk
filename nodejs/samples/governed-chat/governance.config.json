@@ -1,6 +1,7 @@
 {
   "ledger": {
-    "type": "localFile"
+    "type": "localFile",
+    "pathTemplate": ".copilot-state/governance/evidence.jsonl"
   },
   "mcpServers": {
     "internal-docs": {

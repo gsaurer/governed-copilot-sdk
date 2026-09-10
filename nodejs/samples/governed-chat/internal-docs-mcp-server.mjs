@@ -7,9 +7,15 @@ const tools = [
   { name: "get_sales_data", description: "Use this tool whenever the user requests internal or confidential sales data. Set sensitivity to 'internal' for internal sales data and 'confidential' for confidential sales data. Returns synthetic classified sales data and governance metadata.", inputSchema: { type: "object", properties: { sensitivity: { type: "string", enum: ["internal", "confidential"] } }, required: ["sensitivity"] } },
 ];
 const send = (id, result) => process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id, result })}\n`);
-const guidance = (sensitivity) => sensitivity === "confidential"
-  ? "Confidential information may materially harm the organization if disclosed; restrict it to authorized participants and approved endpoints."
-  : "Internal information is non-public operational information for workforce and approved partners; do not publish it externally.";
+
+const INTERNAL_GUIDANCE = "Internal sales information is non-public operational data for workforce and approved partners; do not publish it externally.";
+const CLASSIFIED_GUIDANCE = "Confidential customer and revenue data may materially harm the company and customer relationships if disclosed. Access is limited to authorized personnel with a business need-to-know.";
+
+const INTERNAL_SALES_DATA = `Sales data. Classification: internal. ${INTERNAL_GUIDANCE}\n\n| Account | Opportunity | Amount | Expected close |\n| --- | --- | ---: | --- |\n| Northwind | Renewal | $1.8M | 2026-09-30 |\n| Fabrikam | Expansion | $2.4M | 2026-10-15 |\n| Contoso | New logo | $950K | 2026-11-01 |`;
+
+const CLASSIFIED_SALES_DATA = `Sales data. Classification: confidential. ${CLASSIFIED_GUIDANCE}\n\nSecurity tags: Need-to-know // Customer relationship risk // Revenue exposure // Deal-stage visibility restricted\n\n| Account | Opportunity | Amount | Expected close | Contact likelihood | Exposure |\n| --- | --- | ---: | --- | ---: | --- |\n| Northwind | Renewal | $1.8M | 2026-09-30 | 92% (High) | Strategic account, renewal at risk |\n| Fabrikam | Expansion | $2.4M | 2026-10-15 | 88% (High) | Cross-sell pipeline with C-suite visibility |\n| Contoso | New logo | $950K | 2026-11-01 | 61% (Medium) | Early-stage prospect with pricing pressure |`;
+
+const guidance = (sensitivity) => sensitivity === "confidential" ? CLASSIFIED_GUIDANCE : INTERNAL_GUIDANCE;
 
 rl.on("line", (line) => {
   if (!line.trim()) return;
@@ -23,7 +29,7 @@ rl.on("line", (line) => {
   const sensitivity = name === "get_sales_data" ? args.sensitivity : String(args.query ?? "").toLowerCase().includes("confidential") ? "confidential" : "internal";
   if (name === "get_sales_data" && !["internal", "confidential"].includes(sensitivity)) return send(message.id, { error: { code: -32602, message: "sensitivity must be internal or confidential" } });
   const text = name === "get_sales_data"
-    ? `Sales data. Classification: ${sensitivity}. ${guidance(sensitivity)}\n\n| Account | Opportunity | Amount | Expected close |\n| --- | --- | ---: | --- |\n| Northwind | Renewal | $1.8M | 2026-09-30 |\n| Fabrikam | Expansion | $2.4M | 2026-10-15 |\n| Contoso | New logo | $950K | 2026-11-01 |`
+    ? sensitivity === "confidential" ? CLASSIFIED_SALES_DATA : INTERNAL_SALES_DATA
     : `Internal documentation result. Classification: ${sensitivity}. ${guidance(sensitivity)}`;
   return send(message.id, { content: [{ type: "text", text }], _meta: { governance: { sensitivity, source: "governed-chat-sample" } } });
 });
