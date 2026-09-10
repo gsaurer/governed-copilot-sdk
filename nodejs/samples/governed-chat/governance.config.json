@@ -1,0 +1,130 @@
+{
+    "ledger": {
+        "type": "localFile"
+    },
+    "customTools": [
+        "public_status",
+        "internal_ticket_lookup"
+    ],
+    "mcpServers": {
+        "internal-docs": {
+            "type": "stdio",
+            "command": "node",
+            "args": [
+                "internal-docs-mcp-server.mjs"
+            ],
+            "tools": [
+                "search_internal_docs",
+                "get_sales_data"
+            ]
+        }
+    },
+    "models": {
+        "providers": {
+            "github": {
+                "type": "github",
+                "models": {
+                    "gpt-4.1": {
+                        "id": "${PUBLIC_COPILOT_MODEL:-gpt-4.1}"
+                    }
+                }
+            },
+            "local-mistral": {
+                "type": "openai",
+                "baseUrl": "${LOCAL_MISTRAL_BASE_URL:-http://localhost:11434/v1}",
+                "apiKey": "${LOCAL_MISTRAL_API_KEY:-ollama}",
+                "models": {
+                    "mistral": {
+                        "id": "local-mistral/${LOCAL_MISTRAL_MODEL:-mistral:latest}",
+                        "providerModelId": "${LOCAL_MISTRAL_MODEL:-mistral:latest}",
+                        "modelId": "${LOCAL_MISTRAL_MODEL:-mistral:latest}",
+                        "wireModel": "${LOCAL_MISTRAL_WIRE_MODEL:-mistral:latest}",
+                        "maxPromptTokens": 8192,
+                        "maxContextWindowTokens": 16384,
+                        "maxOutputTokens": 1024,
+                        "name": "Local Mistral"
+                    }
+                }
+            },
+            "foundry": {
+                "type": "azure",
+                "wireApi": "responses",
+                "baseUrl": "${FOUNDRY_BASE_URL:-}",
+                "apiKey": "${FOUNDRY_API_KEY:-}",
+                "azure": {
+                    "apiVersion": "${FOUNDRY_API_VERSION:-}"
+                },
+                "models": {
+                    "gpt-5.5": {
+                        "id": "foundry/${FOUNDRY_MODEL:-}",
+                        "providerModelId": "${FOUNDRY_MODEL:-}",
+                        "modelId": "gpt-4.1",
+                        "wireModel": "${FOUNDRY_DEPLOYMENT:-}",
+                        "maxPromptTokens": 65536,
+                        "maxContextWindowTokens": 131072,
+                        "maxOutputTokens": 4096,
+                        "name": "Foundry GPT-5.5"
+                    }
+                }
+            }
+        }
+    },
+    "profiles": {
+        "public": {
+            "sensitivity": "public",
+            "upgradeTargets": [
+                "internal",
+                "confidential"
+            ]
+        },
+        "internal": {
+            "sensitivity": "internal",
+            "upgradeTargets": [
+                "confidential"
+            ],
+            "models": {
+                "allow": [
+                    "foundry/gpt-5.5"
+                ],
+                "deny": [
+                    "github/gpt-4.1",
+                    "local-mistral/mistral"
+                ]
+            }
+        },
+        "confidential": {
+            "sensitivity": "confidential",
+            "models": {
+                "allow": [
+                    "foundry/gpt-5.5"
+                ],
+                "deny": [
+                    "github/gpt-4.1",
+                    "local-mistral/mistral"
+                ]
+            },
+            "tools": {
+                "allow": [
+                    "builtin:ask_user",
+                    "builtin:task_complete",
+                    "builtin:exit_plan_mode",
+                    "builtin:task",
+                    "builtin:read_agent",
+                    "builtin:write_agent",
+                    "builtin:list_agents",
+                    "builtin:send_inbox",
+                    "builtin:context_board",
+                    "builtin:skill",
+                    "custom:internal_ticket_lookup",
+                    "mcp:internal-docs-search_internal_docs",
+                    "mcp:internal-docs-get_sales_data"
+                ]
+            },
+            "mcpServers": {
+                "allow": [
+                    "internal-docs"
+                ]
+            }
+        }
+    }
+}
