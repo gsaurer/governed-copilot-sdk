@@ -162,8 +162,13 @@ function resolveModelPolicyList(config: Config, references: string[] | undefined
 
 function resolveProfileModel(config: Config, profile: ProfileConfig): string | undefined {
     const reference = environmentFor(config, profile).models?.allow?.[0];
-    if (!reference || reference.endsWith("/*")) return undefined;
+    if (!reference) return undefined;
     const [providerName, modelName] = reference.split("/");
+    if (reference.endsWith("/*")) {
+        const provider = config.models?.providers?.[providerName];
+        const firstModel = Object.values(provider?.models ?? {})[0];
+        return firstModel?.id ?? firstModel?.providerModelId ?? undefined;
+    }
     return config.models?.providers[providerName]?.models[modelName]?.id ?? reference;
 }
 

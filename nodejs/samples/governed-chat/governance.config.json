@@ -70,7 +70,7 @@
     "public-github": {
       "models": {
         "allow": ["github/*"],
-        "deny": ["local-mistral/mistral", "foundry/gpt-5.5"]
+        "deny": ["local-mistral/*", "foundry/gpt-5.5"]
       },
       "tools": {
         "deny": []
@@ -82,7 +82,7 @@
     "internal-foundry": {
       "models": {
         "allow": ["foundry/gpt-5.5"],
-        "deny": ["github/gpt-4.1", "local-mistral/mistral"]
+        "deny": ["github/gpt-4.1", "local-mistral/*"]
       },
       "tools": {
         "deny": []
@@ -94,7 +94,7 @@
     "confidential-foundry": {
       "models": {
         "allow": ["foundry/gpt-5.5"],
-        "deny": ["github/gpt-4.1", "local-mistral/mistral"]
+        "deny": ["github/gpt-4.1", "local-mistral/*"]
       },
       "tools": {
         "allow": [
