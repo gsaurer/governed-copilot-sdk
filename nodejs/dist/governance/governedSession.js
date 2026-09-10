@@ -72,7 +72,8 @@ export class GovernedSession {
             hooks: {
                 ...existingHooks,
                 onPreToolUse: async (input, invocation) => {
-                    if (!gate(normalizeToolName(input.toolName))) {
+                    const toolName = normalizeToolName(input.toolName, activeRef.current);
+                    if (!gate(toolName)) {
                         await append(ledger, {
                             type: "tool.denied",
                             timestamp: new Date().toISOString(),
@@ -80,7 +81,7 @@ export class GovernedSession {
                             profile: activeRef.current.name,
                             sensitivity: activeRef.current.sensitivity,
                             environment: activeRef.current.environment,
-                            data: { toolName: input.toolName, reason: "profile-allow-list" },
+                            data: { toolName, reason: "profile-allow-list" },
                         });
                         return {
                             permissionDecision: "deny",
@@ -168,9 +169,13 @@ export class GovernedSession {
         });
     }
 }
-function normalizeToolName(toolName) {
+function normalizeToolName(toolName, profile) {
     if (toolName.startsWith("mcp:") || toolName.startsWith("custom:") || toolName.startsWith("builtin:")) {
         return toolName;
+    }
+    for (const serverName of Object.keys(profile?.mcpServers ?? {})) {
+        if (toolName.startsWith(`${serverName}-`))
+            return `mcp:${toolName}`;
     }
     return toolName === "web_search" ? "builtin:web_search" : toolName;
 }
