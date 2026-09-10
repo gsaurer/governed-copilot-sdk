@@ -4,6 +4,8 @@ export interface GovernanceProfile {
     name: string;
     sensitivity: Sensitivity;
     model?: string;
+    allowedModels?: string[];
+    deniedModels?: string[];
     tools?: string[];
     deniedTools?: string[];
     mcpServers?: Record<string, MCPServerConfig>;
@@ -32,6 +34,11 @@ export interface GovernedSessionOptions {
     config?: SessionConfig;
     modelDefinitions?: ProviderModelConfig[];
     onEvent?: (event: SessionEvent) => void;
+    onSensitivityChanged?: (change: {
+        previous: GovernanceProfile;
+        current: GovernanceProfile;
+        reason: string;
+    }) => void;
 }
 export interface GovernedSdkSession {
     readonly sessionId: string;

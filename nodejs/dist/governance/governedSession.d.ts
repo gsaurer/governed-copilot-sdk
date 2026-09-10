@@ -3,9 +3,11 @@ export declare class GovernedSession {
     private readonly session;
     private readonly ledger?;
     private readonly policy;
+    private readonly onSensitivityChanged?;
     private active;
     private readonly profiles;
     private activeRef?;
+    private readonly toolNamesByCallId;
     private constructor();
     static create(options: GovernedSessionOptions): Promise<GovernedSession>;
     get sessionId(): string;

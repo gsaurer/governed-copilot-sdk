@@ -4,7 +4,7 @@ import {
     type SessionConfig,
     type SessionEvent,
 } from "@github/copilot-sdk";
-import { getProfile, isHigherSensitivity, matchesTool, applyProfile } from "./policy.js";
+import { assertModelAllowed, getProfile, isHigherSensitivity, matchesTool, applyProfile } from "./policy.js";
 import type {
     EvidenceLedger,
     EvidenceRecord,
@@ -26,9 +26,11 @@ export class GovernedSession {
     private readonly session: GovernedSdkSession;
     private readonly ledger?: EvidenceLedger;
     private readonly policy: GovernedSessionOptions["policy"];
+    private readonly onSensitivityChanged?: GovernedSessionOptions["onSensitivityChanged"];
     private active: GovernanceProfile;
     private readonly profiles: GovernanceProfile[];
     private activeRef?: { current: GovernanceProfile };
+    private readonly toolNamesByCallId = new Map<string, string>();
 
     private constructor(
         session: GovernedSdkSession,
@@ -38,6 +40,7 @@ export class GovernedSession {
         this.session = session;
         this.ledger = options.ledger;
         this.policy = options.policy;
+        this.onSensitivityChanged = options.onSensitivityChanged;
         this.active = active;
         this.profiles = Object.values(options.policy.profiles);
         session.on((event) => {
@@ -139,14 +142,33 @@ export class GovernedSession {
     }
 
     private async observe(event: SessionEvent): Promise<void> {
+        if (event.type === "tool.execution_start") {
+            this.toolNamesByCallId.set(event.data.toolCallId, event.data.toolName);
+            return;
+        }
         if (event.type === "session.model_change") {
+            try {
+                assertModelAllowed(this.active, event.data.newModel);
+            } catch (error) {
+                await this.record("model.denied", {
+                    model: event.data.newModel,
+                    reason: error instanceof Error ? error.message : String(error),
+                });
+                await this.session.disconnect();
+                throw error;
+            }
             await this.record("model.changed", { model: event.data.newModel });
         }
         if (event.type === "tool.execution_complete") {
             const data = event.data as unknown as Record<string, unknown>;
             const sensitivity = extractSensitivity(data);
+            const toolCallId = String(data.toolCallId ?? "");
+            const toolName = this.toolNamesByCallId.get(toolCallId)
+                ?? (data.toolDescription as { name?: string } | undefined)?.name
+                ?? "unknown";
+            this.toolNamesByCallId.delete(toolCallId);
             await this.record("tool.completed", {
-                toolName: String((data.toolDescription as { name?: string } | undefined)?.name ?? "unknown"),
+                toolName,
                 resultSensitivity: sensitivity,
             });
             if (sensitivity && isHigherSensitivity(sensitivity, this.active.sensitivity)) {
@@ -170,6 +192,7 @@ export class GovernedSession {
             newSensitivity: target.sensitivity,
             reason,
         });
+        this.onSensitivityChanged?.({ previous, current: target, reason });
     }
 
     private async record(type: string, data?: Record<string, unknown>): Promise<void> {
@@ -205,13 +228,20 @@ function permissionToolName(request: PermissionRequest): string | undefined {
 
 function extractSensitivity(data: Record<string, unknown>): Sensitivity | undefined {
     const result = data.result as Record<string, unknown> | undefined;
-    const meta = (result?.mcpMeta ?? data.mcpMeta ?? data.toolTelemetry) as Record<string, unknown> | undefined;
+    const meta = (result?._meta ?? result?.mcpMeta ?? data._meta ?? data.mcpMeta ?? data.toolTelemetry) as Record<string, unknown> | undefined;
     const governance = meta?.governance as Record<string, unknown> | undefined;
     const value = governance?.sensitivity;
     if (value === "public" || value === "internal" || value === "confidential" || value === "restricted") {
         return value;
     }
-    const content = typeof result?.content === "string" ? result.content : "";
+    const content = typeof result?.content === "string"
+        ? result.content
+        : Array.isArray(result?.content)
+            ? result.content
+                .filter((item): item is { type: string; text: string } => typeof item === "object" && item !== null && (item as { type?: unknown }).type === "text" && typeof (item as { text?: unknown }).text === "string")
+                .map((item) => item.text)
+                .join("\n")
+            : "";
     return content.match(/Classification:\s*(public|internal|confidential|restricted)/i)?.[1]?.toLowerCase() as Sensitivity | undefined;
 }
 

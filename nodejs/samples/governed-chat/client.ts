@@ -1,6 +1,5 @@
 import {
     CopilotClient,
-    defineTool,
     type MCPServerConfig,
     type NamedProviderConfig,
     type ProviderModelConfig,
@@ -14,14 +13,15 @@ import { stdin as input, stdout as output } from "node:process";
 
 type Config = {
     ledger?: { type: "localFile"; pathTemplate?: string };
-    customTools?: string[];
     mcpServers?: Record<string, ConfiguredMcpServer>;
     models?: { providers: Record<string, ProviderCatalog> };
+    executionEnvironments: Record<string, ExecutionEnvironmentConfig>;
     profiles: Record<string, ProfileConfig>;
 };
 type ProviderCatalog = { type: "github" | "openai" | "azure" | "anthropic"; baseUrl?: string; apiKey?: string; wireApi?: "completions" | "responses"; azure?: { apiVersion?: string }; models: Record<string, ModelCatalog> };
 type ModelCatalog = { id: string; providerModelId?: string; modelId?: string; wireModel?: string; maxPromptTokens?: number; maxContextWindowTokens?: number; maxOutputTokens?: number; name?: string };
-type ProfileConfig = { sensitivity: "public" | "internal" | "confidential" | "restricted"; models?: { allow?: string[]; deny?: string[] }; tools?: { allow?: string[]; deny?: string[] }; mcpServers?: { allow?: string[]; deny?: string[] } };
+type ExecutionEnvironmentConfig = { models?: { allow?: string[]; deny?: string[] }; tools?: { allow?: string[]; deny?: string[] }; mcpServers?: { allow?: string[]; deny?: string[] } };
+type ProfileConfig = { sensitivity: "public" | "internal" | "confidential" | "restricted"; environment: string; upgradeTargets?: string[] };
 type ConfiguredMcpServer = MCPServerConfig & { command?: string; args?: string[] };
 
 const configPath = resolveConfigPath();
@@ -46,6 +46,11 @@ const governed = await GovernedSession.create({
     profile: initialProfile,
     config: createSessionConfig(config, initialProfile),
     ledger: new LocalJsonlLedger(ledgerPath),
+    onSensitivityChanged: ({ previous, current, reason }) => {
+        if (info) {
+            console.log(`${colors.yellow}[sensitivity updated ${previous.sensitivity} -> ${current.sensitivity}; profile=${current.name}; reason=${reason}]${colors.reset}`);
+        }
+    },
     onEvent: (event) => {
         if (event.type === "session.model_change") {
             activeModel = event.data.newModel;
@@ -137,23 +142,40 @@ function toGovernanceProfiles(config: Config) {
         name,
         sensitivity: profile.sensitivity,
         model: resolveProfileModel(config, profile),
-        tools: profile.tools?.allow,
-        deniedTools: profile.tools?.deny,
+        allowedModels: environmentFor(config, profile).models?.allow,
+        deniedModels: resolveModelPolicyList(config, environmentFor(config, profile).models?.deny),
+        tools: environmentFor(config, profile).tools?.allow,
+        deniedTools: environmentFor(config, profile).tools?.deny,
         mcpServers: resolveProfileMcpServers(config, profile),
     }]));
 }
 
+function resolveModelPolicyList(config: Config, references: string[] | undefined): string[] | undefined {
+    return references?.map((reference) => {
+        if (reference === "github/*") return "*";
+        if (reference.endsWith("/*")) return reference;
+        const [providerName, modelName] = reference.split("/");
+        return config.models?.providers[providerName]?.models[modelName]?.id ?? reference;
+    });
+}
+
 function resolveProfileModel(config: Config, profile: ProfileConfig): string | undefined {
-    const reference = profile.models?.allow?.[0];
-    if (!reference) return undefined;
+    const reference = environmentFor(config, profile).models?.allow?.[0];
+    if (!reference || reference.endsWith("/*")) return undefined;
     const [providerName, modelName] = reference.split("/");
     return config.models?.providers[providerName]?.models[modelName]?.id ?? reference;
 }
 
 function resolveProfileMcpServers(config: Config, profile: ProfileConfig): Record<string, MCPServerConfig> | undefined {
     if (!config.mcpServers) return undefined;
-    const allowed = profile.mcpServers?.allow ?? Object.keys(config.mcpServers);
+    const allowed = environmentFor(config, profile).mcpServers?.allow ?? Object.keys(config.mcpServers);
     return Object.fromEntries(allowed.map((name) => [name, resolveMcpServer(config.mcpServers![name])])) as Record<string, MCPServerConfig>;
+}
+
+function environmentFor(config: Config, profile: ProfileConfig): ExecutionEnvironmentConfig {
+    const environment = config.executionEnvironments[profile.environment];
+    if (!environment) throw new Error(`Unknown execution environment '${profile.environment}'.`);
+    return environment;
 }
 
 function resolveMcpServer(server: ConfiguredMcpServer): MCPServerConfig {
@@ -173,15 +195,17 @@ function createSessionConfig(config: Config, profileName: string): SessionConfig
             models.push({ id: model.providerModelId ?? model.id.replace(`${providerName}/`, "") ?? modelName, provider: providerName, modelId: model.modelId, wireModel: model.wireModel, maxPromptTokens: model.maxPromptTokens, maxContextWindowTokens: model.maxContextWindowTokens, maxOutputTokens: model.maxOutputTokens, name: model.name ?? modelName });
         }
     }
-    return { model: resolveProfileModel(config, profile), providers, models, mcpServers: resolveProfileMcpServers(config, profile), tools: resolveCustomTools(config.customTools) } as SessionConfig;
-}
-
-function resolveCustomTools(names: string[] | undefined) {
-    return (names ?? []).map((name) => {
-        if (name === "public_status") return defineTool(name, { description: "Returns public service status.", parameters: { type: "object", properties: {} }, handler: () => ({ textResultForLlm: "All public services are operational.", resultType: "success" }) });
-        if (name === "internal_ticket_lookup") return defineTool(name, { description: "Returns synthetic internal ticket data.", parameters: { type: "object", properties: { id: { type: "string" } } }, handler: () => ({ textResultForLlm: "Synthetic internal ticket data. Classification: internal.", resultType: "success" }) });
-        throw new Error(`No sample implementation exists for configured custom tool '${name}'.`);
-    });
+    return {
+        sensitivity: profile.sensitivity,
+        model: resolveProfileModel(config, profile),
+        providers,
+        models,
+        mcpServers: resolveProfileMcpServers(config, profile),
+        tools: [],
+        systemMessage: {
+            content: "For any request for sales data, call the internal-docs-get_sales_data MCP tool. Use sensitivity 'confidential' when the request asks for confidential sales data; otherwise use 'internal'. Return the tool result to the user. Do not fabricate sales data or replace an available synthetic tool result with a refusal.",
+        },
+    } as SessionConfig;
 }
 
 function resolveLedgerPath(config: Config, sourcePath: string): string {

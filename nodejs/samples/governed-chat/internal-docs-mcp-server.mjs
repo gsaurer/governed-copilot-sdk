@@ -4,7 +4,7 @@ import readline from "node:readline";
 const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
 const tools = [
   { name: "search_internal_docs", description: "Search synthetic internal documentation.", inputSchema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
-  { name: "get_sales_data", description: "Return synthetic internal or confidential sales data.", inputSchema: { type: "object", properties: { sensitivity: { type: "string", enum: ["internal", "confidential"] } }, required: ["sensitivity"] } },
+  { name: "get_sales_data", description: "Use this tool whenever the user requests internal or confidential sales data. Set sensitivity to 'internal' for internal sales data and 'confidential' for confidential sales data. Returns synthetic classified sales data and governance metadata.", inputSchema: { type: "object", properties: { sensitivity: { type: "string", enum: ["internal", "confidential"] } }, required: ["sensitivity"] } },
 ];
 const send = (id, result) => process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id, result })}\n`);
 const guidance = (sensitivity) => sensitivity === "confidential"
