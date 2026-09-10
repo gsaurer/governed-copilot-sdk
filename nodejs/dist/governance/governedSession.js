@@ -79,6 +79,7 @@ export class GovernedSession {
                             sessionId: invocation.sessionId,
                             profile: activeRef.current.name,
                             sensitivity: activeRef.current.sensitivity,
+                            environment: activeRef.current.environment,
                             data: { toolName: input.toolName, reason: "profile-allow-list" },
                         });
                         return {
@@ -162,6 +163,7 @@ export class GovernedSession {
             sessionId: this.session.sessionId,
             profile: this.active.name,
             sensitivity: this.active.sensitivity,
+            environment: this.active.environment,
             data,
         });
     }

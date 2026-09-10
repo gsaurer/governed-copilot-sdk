@@ -141,6 +141,7 @@ function toGovernanceProfiles(config: Config) {
     return Object.fromEntries(Object.entries(config.profiles).map(([name, profile]) => [name, {
         name,
         sensitivity: profile.sensitivity,
+        environment: profile.environment,
         model: resolveProfileModel(config, profile),
         allowedModels: environmentFor(config, profile).models?.allow,
         deniedModels: resolveModelPolicyList(config, environmentFor(config, profile).models?.deny),

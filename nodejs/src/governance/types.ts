@@ -11,6 +11,7 @@ export type Sensitivity = "public" | "internal" | "confidential" | "restricted";
 export interface GovernanceProfile {
     name: string;
     sensitivity: Sensitivity;
+    environment?: string;
     model?: string;
     allowedModels?: string[];
     deniedModels?: string[];
@@ -29,6 +30,7 @@ export interface EvidenceRecord {
     sessionId?: string;
     profile: string;
     sensitivity: Sensitivity;
+    environment?: string;
     data?: Record<string, unknown>;
 }
 
