@@ -122,6 +122,8 @@
           "builtin:skill",
           "mcp:internal-docs-search_internal_docs",
           "mcp:internal-docs-get_sales_data",
+          "mcp:internal-docs-get_internal_demo_data",
+          "mcp:internal-docs-get_confidential_demo_data",
           "mcp:workiq-search_confidential_context",
           "mcp:workiq-get_people_context"
         ]

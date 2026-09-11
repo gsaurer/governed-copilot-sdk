@@ -237,7 +237,7 @@ function createSessionConfig(config: Config, profileName: string): SessionConfig
         mcpServers: resolveProfileMcpServers(config, profile),
         tools: [],
         systemMessage: {
-            content: "For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools to gather context. For requests for sales data, call the internal-docs-get_sales_data MCP tool. Use sensitivity 'confidential' when the request asks for confidential data or workplace-sensitive context; otherwise use 'internal'. Return the tool result to the user. Do not fabricate data or replace an available synthetic tool result with a refusal.",
+            content: "For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools to gather context. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return the tool result to the user. Do not fabricate data or replace an available synthetic tool result with a refusal.",
         },
     } as SessionConfig;
 }

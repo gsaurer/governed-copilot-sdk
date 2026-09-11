@@ -167,7 +167,7 @@ export class GovernedSession {
             const toolName = this.toolNamesByCallId.get(toolCallId)
                 ?? (data.toolDescription as { name?: string } | undefined)?.name
                 ?? "unknown";
-            const sensitivity = extractSensitivity(data, toolName);
+            const sensitivity = extractSensitivity(data);
             this.toolNamesByCallId.delete(toolCallId);
             await this.record("tool.completed", {
                 toolName,
@@ -232,7 +232,7 @@ function permissionToolName(request: PermissionRequest): string | undefined {
     return undefined;
 }
 
-function extractSensitivity(data: Record<string, unknown>, toolName: string): Sensitivity | undefined {
+function extractSensitivity(data: Record<string, unknown>): Sensitivity | undefined {
     const result = data.result as Record<string, unknown> | undefined;
     const metadata = [result?._meta, result?.mcpMeta, data._meta, data.mcpMeta, data.toolTelemetry];
     for (const candidate of metadata) {
@@ -249,7 +249,6 @@ function extractSensitivity(data: Record<string, unknown>, toolName: string): Se
     ].map(stringifyResultContent).filter(Boolean).join("\n");
     const match = content.match(/(?:classification|sensitivity|sensitivity label|information protection|confidentiality)\s*[:=-]\s*(public|internal|confidential|restricted)/i);
     if (match) return match[1].toLowerCase() as Sensitivity;
-    return data.success === true && toolName.startsWith("workiq-") ? "internal" : undefined;
 }
 
 function isSensitivity(value: unknown): value is Sensitivity {
