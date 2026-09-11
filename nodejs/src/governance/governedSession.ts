@@ -351,7 +351,21 @@ function configuredToolSensitivity(
     profile: GovernanceProfile,
 ): Sensitivity | undefined {
     if (!toolSensitivity) return undefined;
-    return toolSensitivity[toolName] ?? toolSensitivity[normalizeToolName(toolName, profile)];
+    const normalizedToolName = normalizeToolName(toolName, profile);
+    return findConfiguredSensitivity(toolSensitivity, toolName)
+        ?? findConfiguredSensitivity(toolSensitivity, normalizedToolName);
+}
+
+function findConfiguredSensitivity(
+    toolSensitivity: Record<string, Sensitivity>,
+    toolName: string,
+): Sensitivity | undefined {
+    const exact = toolSensitivity[toolName];
+    if (exact) return exact;
+    const wildcard = Object.entries(toolSensitivity).find(([pattern]) =>
+        pattern.endsWith("*") && toolName.startsWith(pattern.slice(0, -1))
+    );
+    return wildcard?.[1];
 }
 
 function isSensitivity(value: unknown): value is Sensitivity {
