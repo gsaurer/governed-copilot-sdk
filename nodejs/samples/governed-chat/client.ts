@@ -1,5 +1,6 @@
 import {
     CopilotClient,
+    defineTool,
     type MCPServerConfig,
     type NamedProviderConfig,
     type ProviderModelConfig,
@@ -297,11 +298,52 @@ function createSessionConfig(config: Config, profileName: string): SessionConfig
         providers,
         models,
         mcpServers: resolveProfileMcpServers(config, profile),
-        tools: [],
+        tools: [createGovernancePolicyTool(config)],
         systemMessage: {
-            content: "For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools to gather context. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return the tool result to the user. Do not fabricate data or replace an available synthetic tool result with a refusal.",
+            content: "Use the governance_policy tool to answer questions about configured profiles, sensitivity levels, allowed models, tools, and MCP servers. The governance_policy tool is read-only. Never change governance configuration from chat and do not claim that configuration changed. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools to gather context. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return the tool result to the user. Do not fabricate data or replace an available synthetic tool result with a refusal.",
         },
     } as SessionConfig;
+}
+
+function createGovernancePolicyTool(config: Config) {
+    return defineTool("governance_policy", {
+        description: "Read-only view of the loaded governance configuration. Use for questions about sensitivity levels, profiles, allowed models, tools, or MCP servers. Configuration changes are forbidden.",
+        parameters: {
+            type: "object",
+            properties: {
+                query: { type: "string", description: "Optional question or scope, such as 'internal', 'confidential', 'public profile', or 'all'." },
+            },
+        },
+        skipPermission: true,
+        handler: ({ query }: { query?: string }) => ({
+            sensitivityLevels: ["public", "internal", "confidential", "restricted"],
+            profiles: Object.fromEntries(Object.entries(config.profiles)
+                .filter(([name, profile]) => !query || matchesPolicyQuery(query, name, profile.sensitivity))
+                .map(([name, profile]) => {
+                    const environment = environmentFor(config, profile);
+                    return [name, {
+                        sensitivity: profile.sensitivity,
+                        environment: profile.environment,
+                        upgradeTargets: profile.upgradeTargets ?? [],
+                        models: environment.models ?? {},
+                        tools: environment.tools ?? {},
+                        mcpServers: environment.mcpServers ?? {},
+                    }];
+                })),
+            toolSensitivity: config.toolSensitivity ?? {},
+            configuredProviders: Object.fromEntries(Object.entries(config.models?.providers ?? {}).map(([name, provider]) => [name, {
+                type: provider.type,
+                models: Object.keys(provider.models),
+            }])),
+            readOnly: true,
+            query: query ?? "all",
+        }),
+    });
+}
+
+function matchesPolicyQuery(query: string, profileName: string, sensitivity: Sensitivity): boolean {
+    const normalized = query.toLowerCase();
+    return normalized.includes("all") || normalized.includes(profileName.toLowerCase()) || normalized.includes(sensitivity);
 }
 
 function isConfiguredModelAllowed(reference: string, allowed: string[] | undefined, denied: string[] | undefined): boolean {
