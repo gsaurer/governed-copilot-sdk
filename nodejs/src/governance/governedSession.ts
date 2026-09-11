@@ -163,11 +163,11 @@ export class GovernedSession {
         }
         if (event.type === "tool.execution_complete") {
             const data = event.data as unknown as Record<string, unknown>;
-            const sensitivity = extractSensitivity(data);
             const toolCallId = String(data.toolCallId ?? "");
             const toolName = this.toolNamesByCallId.get(toolCallId)
                 ?? (data.toolDescription as { name?: string } | undefined)?.name
                 ?? "unknown";
+            const sensitivity = extractSensitivity(data, toolName);
             this.toolNamesByCallId.delete(toolCallId);
             await this.record("tool.completed", {
                 toolName,
@@ -232,23 +232,41 @@ function permissionToolName(request: PermissionRequest): string | undefined {
     return undefined;
 }
 
-function extractSensitivity(data: Record<string, unknown>): Sensitivity | undefined {
+function extractSensitivity(data: Record<string, unknown>, toolName: string): Sensitivity | undefined {
     const result = data.result as Record<string, unknown> | undefined;
-    const meta = (result?._meta ?? result?.mcpMeta ?? data._meta ?? data.mcpMeta ?? data.toolTelemetry) as Record<string, unknown> | undefined;
-    const governance = meta?.governance as Record<string, unknown> | undefined;
-    const value = governance?.sensitivity;
-    if (value === "public" || value === "internal" || value === "confidential" || value === "restricted") {
-        return value;
+    const metadata = [result?._meta, result?.mcpMeta, data._meta, data.mcpMeta, data.toolTelemetry];
+    for (const candidate of metadata) {
+        const meta = candidate as Record<string, unknown> | undefined;
+        const governance = meta?.governance as Record<string, unknown> | undefined;
+        const value = governance?.sensitivity ?? meta?.sensitivity ?? meta?.classification ?? meta?.ifc;
+        if (isSensitivity(value)) return value;
     }
-    const content = typeof result?.content === "string"
-        ? result.content
-        : Array.isArray(result?.content)
-            ? result.content
-                .filter((item): item is { type: string; text: string } => typeof item === "object" && item !== null && (item as { type?: unknown }).type === "text" && typeof (item as { text?: unknown }).text === "string")
-                .map((item) => item.text)
-                .join("\n")
-            : "";
-    return content.match(/Classification:\s*(public|internal|confidential|restricted)/i)?.[1]?.toLowerCase() as Sensitivity | undefined;
+    const content = [
+        result?.content,
+        result?.detailedContent,
+        result?.structuredContent,
+        result?.contents,
+    ].map(stringifyResultContent).filter(Boolean).join("\n");
+    const match = content.match(/(?:classification|sensitivity|sensitivity label|information protection|confidentiality)\s*[:=-]\s*(public|internal|confidential|restricted)/i);
+    if (match) return match[1].toLowerCase() as Sensitivity;
+    return data.success === true && toolName.startsWith("workiq-") ? "internal" : undefined;
+}
+
+function isSensitivity(value: unknown): value is Sensitivity {
+    return value === "public" || value === "internal" || value === "confidential" || value === "restricted";
+}
+
+function stringifyResultContent(value: unknown): string {
+    if (typeof value === "string") return value;
+    if (Array.isArray(value)) {
+        return value.map((item) => {
+            if (typeof item === "string") return item;
+            if (item && typeof item === "object" && "text" in item && typeof item.text === "string") return item.text;
+            return "";
+        }).filter(Boolean).join("\n");
+    }
+    if (value && typeof value === "object") return JSON.stringify(value);
+    return "";
 }
 
 function append(ledger: EvidenceLedger | undefined, record: EvidenceRecord): Promise<void> {
