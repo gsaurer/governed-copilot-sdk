@@ -127,7 +127,8 @@ export class GovernedSession {
             const toolName = this.toolNamesByCallId.get(toolCallId)
                 ?? data.toolDescription?.name
                 ?? "unknown";
-            const sensitivity = extractSensitivity(data);
+            const sensitivity = extractSensitivity(data)
+                ?? configuredToolSensitivity(this.policy.toolSensitivity, toolName, this.active);
             this.toolNamesByCallId.delete(toolCallId);
             await this.record("tool.completed", {
                 toolName,
@@ -210,6 +211,11 @@ function extractSensitivity(data) {
     const match = content.match(/(?:classification|sensitivity|sensitivity label|information protection|confidentiality)\s*[:=-]\s*(public|internal|confidential|restricted)/i);
     if (match)
         return match[1].toLowerCase();
+}
+function configuredToolSensitivity(toolSensitivity, toolName, profile) {
+    if (!toolSensitivity)
+        return undefined;
+    return toolSensitivity[toolName] ?? toolSensitivity[normalizeToolName(toolName, profile)];
 }
 function isSensitivity(value) {
     return value === "public" || value === "internal" || value === "confidential" || value === "restricted";

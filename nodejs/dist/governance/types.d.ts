@@ -13,6 +13,7 @@ export interface GovernanceProfile {
 }
 export interface GovernancePolicy {
     profiles: Record<string, GovernanceProfile>;
+    toolSensitivity?: Record<string, Sensitivity>;
 }
 export interface EvidenceRecord {
     type: string;

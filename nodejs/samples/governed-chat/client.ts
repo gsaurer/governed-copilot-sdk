@@ -5,7 +5,7 @@ import {
     type ProviderModelConfig,
     type SessionConfig,
 } from "@github/copilot-sdk";
-import { GovernedSession, LocalJsonlLedger } from "governed-copilot-sdk-nodejs";
+import { GovernedSession, LocalJsonlLedger, type Sensitivity } from "governed-copilot-sdk-nodejs";
 import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
@@ -13,6 +13,7 @@ import { stdin as input, stdout as output } from "node:process";
 
 type Config = {
     ledger?: { type: "localFile"; pathTemplate?: string };
+    toolSensitivity?: Record<string, Sensitivity>;
     mcpServers?: Record<string, ConfiguredMcpServer>;
     models?: { providers: Record<string, ProviderCatalog> };
     executionEnvironments: Record<string, ExecutionEnvironmentConfig>;
@@ -33,7 +34,7 @@ const colors = {
 };
 await loadEnvironmentFile(join(dirname(configPath), ".env"));
 const config = expandEnvironmentTemplates(JSON.parse(await readFile(configPath, "utf8")) as Config);
-const policy = { profiles: toGovernanceProfiles(config) };
+const policy = { profiles: toGovernanceProfiles(config), toolSensitivity: config.toolSensitivity };
 const initialProfile = process.env.GOVERNED_PROFILE ?? "public";
 const client = new CopilotClient();
 const ledgerPath = resolveLedgerPath(config, configPath);

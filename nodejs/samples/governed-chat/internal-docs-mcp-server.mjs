@@ -16,8 +16,8 @@ const CLASSIFIED_GUIDANCE = "Confidential customer and revenue data may material
 const INTERNAL_SALES_DATA = `Sales data. Classification: internal. ${INTERNAL_GUIDANCE}\n\n| Account | Opportunity | Amount | Expected close |\n| --- | --- | ---: | --- |\n| Northwind | Renewal | $1.8M | 2026-09-30 |\n| Fabrikam | Expansion | $2.4M | 2026-10-15 |\n| Contoso | New logo | $950K | 2026-11-01 |`;
 
 const CLASSIFIED_SALES_DATA = `Sales data. Classification: confidential. ${CLASSIFIED_GUIDANCE}\n\nSecurity tags: Need-to-know // Customer relationship risk // Revenue exposure // Deal-stage visibility restricted\n\n| Account | Opportunity | Amount | Expected close | Contact likelihood | Exposure |\n| --- | --- | ---: | --- | ---: | --- |\n| Northwind | Renewal | $1.8M | 2026-09-30 | 92% (High) | Strategic account, renewal at risk |\n| Fabrikam | Expansion | $2.4M | 2026-10-15 | 88% (High) | Cross-sell pipeline with C-suite visibility |\n| Contoso | New logo | $950K | 2026-11-01 | 61% (Medium) | Early-stage prospect with pricing pressure |`;
-const INTERNAL_DEMO_DATA = "Internal: Synthetic workforce planning data. Headcount planning is limited to employees and approved partners.";
-const CONFIDENTIAL_DEMO_DATA = "Confidential: Synthetic customer escalation data. Customer names and remediation details are restricted to authorized personnel.";
+const INTERNAL_DEMO_DATA = "Synthetic workforce planning data. Headcount planning is limited to employees and approved partners.";
+const CONFIDENTIAL_DEMO_DATA = "Synthetic customer escalation data. Customer names and remediation details are restricted to authorized personnel.";
 
 const guidance = (sensitivity) => sensitivity === "confidential" ? CLASSIFIED_GUIDANCE : INTERNAL_GUIDANCE;
 
@@ -45,5 +45,7 @@ rl.on("line", (line) => {
       : name === "get_confidential_demo_data"
         ? CONFIDENTIAL_DEMO_DATA
         : `Internal documentation result. Classification: ${sensitivity}. ${guidance(sensitivity)}`;
-  return send(message.id, { content: [{ type: "text", text }], _meta: { governance: { sensitivity, source: "governed-chat-sample" } } });
+  const result = { content: [{ type: "text", text }] };
+  if (name === "get_internal_demo_data" || name === "get_confidential_demo_data") return send(message.id, result);
+  return send(message.id, { ...result, _meta: { governance: { sensitivity, source: "governed-chat-sample" } } });
 });

@@ -3,6 +3,10 @@
     "type": "localFile",
     "pathTemplate": ".copilot-state/governance/evidence.jsonl"
   },
+  "toolSensitivity": {
+    "mcp:internal-docs-get_internal_demo_data": "internal",
+    "mcp:internal-docs-get_confidential_demo_data": "confidential"
+  },
   "mcpServers": {
     "internal-docs": {
       "type": "stdio",

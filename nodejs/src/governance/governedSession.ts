@@ -167,7 +167,8 @@ export class GovernedSession {
             const toolName = this.toolNamesByCallId.get(toolCallId)
                 ?? (data.toolDescription as { name?: string } | undefined)?.name
                 ?? "unknown";
-            const sensitivity = extractSensitivity(data);
+            const sensitivity = extractSensitivity(data)
+                ?? configuredToolSensitivity(this.policy.toolSensitivity, toolName, this.active);
             this.toolNamesByCallId.delete(toolCallId);
             await this.record("tool.completed", {
                 toolName,
@@ -249,6 +250,15 @@ function extractSensitivity(data: Record<string, unknown>): Sensitivity | undefi
     ].map(stringifyResultContent).filter(Boolean).join("\n");
     const match = content.match(/(?:classification|sensitivity|sensitivity label|information protection|confidentiality)\s*[:=-]\s*(public|internal|confidential|restricted)/i);
     if (match) return match[1].toLowerCase() as Sensitivity;
+}
+
+function configuredToolSensitivity(
+    toolSensitivity: Record<string, Sensitivity> | undefined,
+    toolName: string,
+    profile: GovernanceProfile,
+): Sensitivity | undefined {
+    if (!toolSensitivity) return undefined;
+    return toolSensitivity[toolName] ?? toolSensitivity[normalizeToolName(toolName, profile)];
 }
 
 function isSensitivity(value: unknown): value is Sensitivity {
