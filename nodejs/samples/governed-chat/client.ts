@@ -303,13 +303,13 @@ function createSessionConfig(config: Config, profileName: string): SessionConfig
         mcpServers: resolveProfileMcpServers(config, profile),
             tools: [createGovernancePolicyTool(config), createGovernanceSensitivityTool()],
         systemMessage: {
-                content: "Use governance_policy to answer questions about the current session and configured profiles, sensitivity levels, allowed models, tools, and MCP servers. Use governance_set_sensitivity for every user request to upgrade or downgrade sensitivity, and do not claim success until that tool returns success. The tool enforces monotonic sensitivity: upward requests can succeed when policy allows them, while downgrade requests are rejected and the session remains at its current sensitivity. Never change governance configuration from chat. A sensitivity change can also occur when governance processes an explicit tool classification. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return tool results to the user. Do not fabricate data or replace an available tool result with a refusal.",
+                    content: "Use read_governance_policy to answer questions about the current session and configured profiles, sensitivity levels, allowed models, tools, and MCP servers. Use governance_set_sensitivity for every user request to upgrade or downgrade sensitivity, and do not claim success until that tool returns success. The tool enforces monotonic sensitivity: upward requests can succeed when policy allows them, while downgrade requests are rejected and the session remains at its current sensitivity. Never change governance configuration from chat. A sensitivity change can also occur when governance processes an explicit tool classification. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return tool results to the user. Do not fabricate data or replace an available tool result with a refusal.",
         },
     } as SessionConfig;
 }
 
 function createGovernancePolicyTool(config: Config) {
-    return defineTool("governance_policy", {
+    return defineTool("read_governance_policy", {
         description: "Read-only view of the current session state and loaded governance configuration. Use for questions about sensitivity levels, profiles, allowed models, tools, or MCP servers, including requests to lower sensitivity. Configuration changes and sensitivity downgrades are forbidden.",
         parameters: {
             type: "object",
@@ -350,7 +350,7 @@ function createGovernancePolicyTool(config: Config) {
 }
 
 function createGovernanceSensitivityTool() {
-    return defineTool("governance_set_sensitivity", {
+    return defineTool("set_sensitivity", {
         description: "Governed control for a requested session sensitivity. Always use for user requests to upgrade or downgrade sensitivity. Downgrades are rejected.",
         parameters: {
             type: "object",

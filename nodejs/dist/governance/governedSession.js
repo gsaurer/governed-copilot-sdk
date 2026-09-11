@@ -174,7 +174,7 @@ function normalizeToolName(toolName, profile) {
     if (toolName.startsWith("mcp:") || toolName.startsWith("custom:") || toolName.startsWith("builtin:")) {
         return toolName;
     }
-    if (toolName === "governance_policy" || toolName === "governance_set_sensitivity") {
+    if (toolName === "read_governance_policy" || toolName === "set_sensitivity") {
         return `builtin:${toolName}`;
     }
     for (const serverName of Object.keys(profile?.mcpServers ?? {})) {
