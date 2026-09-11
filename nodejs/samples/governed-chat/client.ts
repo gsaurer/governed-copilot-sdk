@@ -274,13 +274,20 @@ function resolveMcpServer(server: ConfiguredMcpServer): MCPServerConfig {
 
 function createSessionConfig(config: Config, profileName: string): SessionConfig {
     const profile = config.profiles[profileName];
+    const environment = environmentFor(config, profile);
+    const allowedModels = environment.models?.allow;
+    const deniedModels = environment.models?.deny;
     const providers: NamedProviderConfig[] = [];
     const models: ProviderModelConfig[] = [];
     for (const [providerName, provider] of Object.entries(config.models?.providers ?? {})) {
         if (provider.type === "github") continue;
         const { models: providerModels, type, ...connection } = provider;
-        providers.push({ name: providerName, type, ...connection } as NamedProviderConfig);
         for (const [modelName, model] of Object.entries(providerModels)) {
+            const reference = `${providerName}/${modelName}`;
+            if (!isConfiguredModelAllowed(reference, allowedModels, deniedModels)) continue;
+            if (!providers.some((candidate) => candidate.name === providerName)) {
+                providers.push({ name: providerName, type, ...connection } as NamedProviderConfig);
+            }
             models.push({ id: model.providerModelId ?? model.id.replace(`${providerName}/`, "") ?? modelName, provider: providerName, modelId: model.modelId, wireModel: model.wireModel, maxPromptTokens: model.maxPromptTokens, maxContextWindowTokens: model.maxContextWindowTokens, maxOutputTokens: model.maxOutputTokens, name: model.name ?? modelName });
         }
     }
@@ -295,6 +302,15 @@ function createSessionConfig(config: Config, profileName: string): SessionConfig
             content: "For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools to gather context. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return the tool result to the user. Do not fabricate data or replace an available synthetic tool result with a refusal.",
         },
     } as SessionConfig;
+}
+
+function isConfiguredModelAllowed(reference: string, allowed: string[] | undefined, denied: string[] | undefined): boolean {
+    if (denied?.some((pattern) => matchesModelReference(reference, pattern))) return false;
+    return !allowed || allowed.some((pattern) => matchesModelReference(reference, pattern));
+}
+
+function matchesModelReference(reference: string, pattern: string): boolean {
+    return pattern === reference || pattern === "*" || pattern.endsWith("/*") && reference.startsWith(pattern.slice(0, -1));
 }
 
 function resolveLedgerPath(config: Config, sourcePath: string): string {
