@@ -14,6 +14,18 @@
         "search_internal_docs",
         "get_sales_data"
       ]
+    },
+    "workiq": {
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@microsoft/workiq",
+        "mcp"
+      ],
+      "tools": [
+        "*"
+      ]
     }
   },
   "models": {
@@ -88,7 +100,7 @@
         "deny": []
       },
       "mcpServers": {
-        "deny": []
+        "allow": ["internal-docs", "workiq"]
       }
     },
     "confidential-foundry": {
@@ -109,11 +121,13 @@
           "builtin:context_board",
           "builtin:skill",
           "mcp:internal-docs-search_internal_docs",
-          "mcp:internal-docs-get_sales_data"
+          "mcp:internal-docs-get_sales_data",
+          "mcp:workiq-search_confidential_context",
+          "mcp:workiq-get_people_context"
         ]
       },
       "mcpServers": {
-        "allow": ["internal-docs"]
+        "allow": ["internal-docs", "workiq"]
       }
     }
   },
