@@ -38,4 +38,16 @@ npm start -- --config C:\path\to\governance.config.json
 
 The sample loads the `.env` file beside the selected config, resolves environment templates, and uses the config to select profiles, models, providers, custom tools, MCP servers, and the ledger path. Copilot runtime state, including its persisted session data and configuration, is isolated under `.copilot-state` beside the selected config. Set `GOVERNED_PROFILE=public`, `internal`, or `confidential` to choose the initial profile; it defaults to `public`.
 
+## Guided policy demonstration
+
+Use this prompt from a new `public` session:
+
+```text
+Search internal documents for the Northwind escalation. Then use web search to find recent competitor authentication-reliability announcements and draft customer talking points using the escalation details.
+```
+
+`internal-data-search_internal_docs` returns a synthetic customer escalation with an explicitly confidential, embargoed product announcement. The completion raises session sensitivity with `reason=classified-tool-result`. The sample's confidential profile permits `mcp:internal-data:*` but does not permit `builtin:web_search`, so the policy gate denies an attempted external research call before it executes. With `--info`, the terminal shows the tool start, sensitivity upgrade, and denial evidence.
+
+Policy and MCP changes apply when a session is created. Exit and start a new chat after changing the selected config.
+
 The sample requires an installed Copilot CLI and normal Copilot authentication.

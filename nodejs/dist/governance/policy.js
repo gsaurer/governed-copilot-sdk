@@ -19,7 +19,7 @@ export function isHigherSensitivity(candidate, current) {
     return sensitivityOrder.indexOf(candidate) > sensitivityOrder.indexOf(current);
 }
 export function matchesTool(toolName, filters) {
-    return filters.some((filter) => filter === toolName || (filter.endsWith(":*") && toolName.startsWith(filter.slice(0, -1))));
+    return filters.some((filter) => filter === toolName || (filter.endsWith("*") && toolName.startsWith(filter.slice(0, -1))));
 }
 function matchesModel(model, pattern) {
     if (pattern === "github/*")

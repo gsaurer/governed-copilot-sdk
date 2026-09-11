@@ -80,7 +80,10 @@
     },
     "confidential-env": {
       "models": {
-        "allow": ["foundry/gpt-5.5"]
+        "allow": [
+          "github/*",
+          "foundry/gpt-5.5"
+        ]
       },
       "tools": {
         "allow": [
