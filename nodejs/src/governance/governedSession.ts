@@ -215,6 +215,9 @@ function normalizeToolName(toolName: string, profile?: GovernanceProfile): strin
     if (toolName.startsWith("mcp:") || toolName.startsWith("custom:") || toolName.startsWith("builtin:")) {
         return toolName;
     }
+    if (toolName === "governance_policy" || toolName === "governance_set_sensitivity") {
+        return `builtin:${toolName}`;
+    }
     for (const serverName of Object.keys(profile?.mcpServers ?? {})) {
         if (toolName.startsWith(`${serverName}-`)) return `mcp:${toolName}`;
     }
