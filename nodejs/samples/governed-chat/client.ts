@@ -95,8 +95,7 @@ console.log(`Governed chat using ${configPath}`);
 console.log(`Profile: ${governed.profile.name} (${governed.profile.sensitivity})`);
 console.log(`SessionId: ${governed.sessionId}`);
 console.log(`Ledger: ${ledgerPath}`);
-console.log(`${colors.yellow}System:${colors.reset} Model: ${activeModel}`);
-console.log("Type /exit to quit.");
+console.log(`${colors.yellow}System:${colors.reset} Sensitivity: ${governed.profile.sensitivity}; Model: ${activeModel}; Type /exit to quit.`);
 
 try {
     while (true) {
