@@ -36,6 +36,6 @@ The config path can be absolute or relative to the directory where `npm start` r
 npm start -- --config C:\path\to\governance.config.json
 ```
 
-The sample loads the `.env` file beside the selected config, resolves environment templates, and uses the config to select profiles, models, providers, custom tools, MCP servers, and the ledger path. Set `GOVERNED_PROFILE=public`, `internal`, or `confidential` to choose the initial profile; it defaults to `public`.
+The sample loads the `.env` file beside the selected config, resolves environment templates, and uses the config to select profiles, models, providers, custom tools, MCP servers, and the ledger path. Copilot runtime state, including its persisted session data and configuration, is isolated under `.copilot-state` beside the selected config. Set `GOVERNED_PROFILE=public`, `internal`, or `confidential` to choose the initial profile; it defaults to `public`.
 
 The sample requires an installed Copilot CLI and normal Copilot authentication.

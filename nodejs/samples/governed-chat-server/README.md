@@ -2,7 +2,7 @@
 
 This sample exposes a small HTTP and Server-Sent Events interface around `GovernedSession`. It is intended as a starting point for applications such as PDA that need to connect to a governed Copilot session over a messaging API.
 
-The server keeps sessions in memory. Restarting the process loses the session map; it does not restore Copilot sessions or confidentiality state.
+Copilot runtime state is stored under `.copilot-state` beside the selected governance configuration. The HTTP server still keeps its session map in memory, so restarting it loses the API session registry and does not restore confidentiality state.
 
 ## Run
 

@@ -4,19 +4,18 @@
     "pathTemplate": ".copilot-state/governance/evidence.jsonl"
   },
   "toolSensitivity": {
-    "mcp:internal-docs-get_internal_demo_data": "internal",
-    "mcp:internal-docs-get_confidential_demo_data": "confidential"
+    "mcp:internal-data-get_internal_demo_data": "internal",
+    "mcp:internal-data-get_confidential_demo_data": "confidential"
   },
   "mcpServers": {
-    "internal-docs": {
+    "internal-data": {
       "type": "stdio",
       "command": "node",
       "args": [
-        "governed-chat/internal-docs-mcp-server.mjs"
+        "mcps/internal-data-mcp-server.mjs"
       ],
       "tools": [
-        "search_internal_docs",
-        "get_sales_data"
+        "*"
       ]
     },
     "workiq": {
@@ -104,7 +103,7 @@
         "deny": []
       },
       "mcpServers": {
-        "allow": ["internal-docs", "workiq"]
+        "allow": ["internal-data", "workiq"]
       }
     },
     "confidential-foundry": {
@@ -126,16 +125,16 @@
           "builtin:skill",
           "builtin:read_governance_policy",
           "builtin:set_sensitivity",
-          "mcp:internal-docs-search_internal_docs",
-          "mcp:internal-docs-get_sales_data",
-          "mcp:internal-docs-get_internal_demo_data",
-          "mcp:internal-docs-get_confidential_demo_data",
+          "mcp:internal-data-search_internal_docs",
+          "mcp:internal-data-get_sales_data",
+          "mcp:internal-data-get_internal_demo_data",
+          "mcp:internal-data-get_confidential_demo_data",
           "mcp:workiq-search_confidential_context",
           "mcp:workiq-get_people_context"
         ]
       },
       "mcpServers": {
-        "allow": ["internal-docs", "workiq"]
+        "allow": ["internal-data", "workiq"]
       }
     }
   },

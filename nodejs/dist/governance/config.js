@@ -94,8 +94,8 @@ export function resolveMcpServer(server, baseDir) {
         return server;
     return {
         ...server,
-        command: server.command === "node" ? process.execPath : server.command,
-        args: server.args?.map((arg) => (baseDir && arg.endsWith(".mjs") ? resolve(baseDir, arg) : arg)),
+        args: server.args?.map((arg) => (baseDir && arg.endsWith(".mjs") ? resolve(baseDir, arg).replaceAll("\\", "/") : arg)),
+        workingDirectory: server.workingDirectory ?? baseDir,
     };
 }
 export function createSessionConfig(config, profileName, baseDir) {

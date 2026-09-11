@@ -2,10 +2,11 @@ import { CopilotClient } from "@github/copilot-sdk";
 import { GovernedSession, LocalJsonlLedger, loadGovernanceConfig } from "governed-copilot-sdk-nodejs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 const defaultConfigPath = fileURLToPath(new URL("../sample.governance.config.json", import.meta.url));
 const configPath = resolve(process.env.GOVERNANCE_CONFIG ?? defaultConfigPath);
+const copilotStatePath = resolve(dirname(configPath), ".copilot-state");
 const port = Number(process.env.PORT ?? "8120");
 const { policy, ledgerPath, sessionConfigFor } = await loadGovernanceConfig(configPath);
 const sessions = new Map<string, ServerSession>();
@@ -33,6 +34,7 @@ const server = createServer(async (request, response) => {
 server.listen(port, "127.0.0.1", () => {
     console.log(`Governed chat server listening on http://127.0.0.1:${port}`);
     console.log(`Governance config: ${configPath}`);
+    console.log(`Copilot state: ${copilotStatePath}`);
     console.log("Session persistence: disabled (in-memory only)");
 });
 
@@ -57,7 +59,7 @@ async function createSession(request: IncomingMessage, response: ServerResponse)
     const profile = body.profile ?? "public";
     if (!policy.profiles[profile]) return sendJson(response, 400, { error: "unknown_profile", profile });
 
-    const client = new CopilotClient();
+    const client = new CopilotClient({ baseDirectory: copilotStatePath, workingDirectory: dirname(configPath) });
     let session: ServerSession | undefined;
     const governed = await GovernedSession.create({
         client,

@@ -20,7 +20,8 @@ let governedSession: GovernedSession | undefined;
 await loadEnvironmentFile(join(dirname(configPath), ".env"));
 const { policy, ledgerPath, sessionConfigFor } = await loadGovernanceConfig(configPath);
 const initialProfile = process.env.GOVERNED_PROFILE ?? "public";
-const client = new CopilotClient();
+const copilotStatePath = resolve(dirname(configPath), ".copilot-state");
+const client = new CopilotClient({ baseDirectory: copilotStatePath, workingDirectory: dirname(configPath) });
 let activeModel = policy.profiles[initialProfile]?.model ?? "runtime default";
 governedSession = await GovernedSession.create({
     client,
@@ -59,6 +60,13 @@ governedSession = await GovernedSession.create({
                 model: event.data.model,
             });
         }
+        if (event.type === "session.mcp_server_status_changed" && info) {
+            logInfo("session.mcp_server_status_changed", {
+                server: event.data.serverName,
+                status: event.data.status,
+                error: event.data.error,
+            });
+        }
         if (!debug) return;
         const data = event.data as Record<string, unknown> | undefined;
         const details = [
@@ -77,6 +85,7 @@ console.log(`Governed chat using ${configPath}`);
 console.log(`Profile: ${governed.profile.name} (${governed.profile.sensitivity})`);
 console.log(`SessionId: ${governed.sessionId}`);
 console.log(`Ledger: ${ledgerPath}`);
+console.log(`Copilot state: ${copilotStatePath}`);
 console.log(`${colors.yellow}System:${colors.reset} Sensitivity: ${governed.profile.sensitivity}; Model: ${activeModel}; Type /exit to quit.`);
 
 try {
@@ -198,7 +207,7 @@ function withAppSystemMessage(config: SessionConfig): SessionConfig {
     return {
         ...config,
         systemMessage: {
-            content: "A sensitivity change can also occur when governance processes an explicit tool classification. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return tool results to the user. Do not fabricate data or replace an available tool result with a refusal.",
+            content: "A sensitivity change can also occur when governance processes an explicit tool classification. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-data-get_sales_data MCP tool. For governance demonstrations, use internal-data-get_internal_demo_data for Internal data and internal-data-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return tool results to the user. Do not fabricate data or replace an available tool result with a refusal.",
         },
     };
 }

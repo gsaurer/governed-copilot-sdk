@@ -87,13 +87,13 @@ export class GovernedSession {
         return this.session.sendAndWait(...args) as Promise<T>;
     }
 
-    public async setSensitivity(sensitivity: Sensitivity): Promise<void> {
+    public async setSensitivity(sensitivity: Sensitivity, reason = "explicit-request"): Promise<void> {
         if (!isHigherSensitivity(sensitivity, this.active.sensitivity)) {
             throw new Error(`Sensitivity cannot move from '${this.active.sensitivity}' to '${sensitivity}'.`);
         }
         const target = this.profiles.find((profile) => profile.sensitivity === sensitivity);
         if (!target) throw new Error(`No profile exists for sensitivity '${sensitivity}'.`);
-        await this.upgradeTo(target, "explicit-request");
+        await this.upgradeTo(target, reason);
     }
 
     public async disconnect(): Promise<void> {
@@ -155,7 +155,7 @@ export class GovernedSession {
             handler: async ({ sensitivity }: { sensitivity: Sensitivity }) => {
                 const governed = governedRef.current!;
                 try {
-                    await governed.setSensitivity(sensitivity);
+                    await governed.setSensitivity(sensitivity, "set-sensitivity-tool-called");
                     return { success: true, profile: governed.profile.name, sensitivity: governed.profile.sensitivity };
                 } catch (error) {
                     return {
