@@ -1,7 +1,7 @@
 import type { SessionConfig } from "@github/copilot-sdk";
 import type { GovernancePolicy, GovernanceProfile, Sensitivity } from "./types.js";
 
-const sensitivityOrder: Sensitivity[] = ["public", "internal", "confidential", "restricted"];
+export const sensitivityOrder: Sensitivity[] = ["public", "internal", "confidential", "restricted"];
 
 export function getProfile(policy: GovernancePolicy, name: string): GovernanceProfile {
     const profile = policy.profiles[name];

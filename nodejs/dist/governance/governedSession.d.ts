@@ -15,6 +15,7 @@ export declare class GovernedSession {
     sendAndWait<T = unknown>(...args: unknown[]): Promise<T>;
     setSensitivity(sensitivity: Sensitivity): Promise<void>;
     disconnect(): Promise<void>;
+    private static withBuiltInGovernanceTools;
     private static withGovernanceHooks;
     private observe;
     private upgradeTo;

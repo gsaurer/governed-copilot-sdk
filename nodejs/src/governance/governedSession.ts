@@ -1,13 +1,15 @@
 import {
+    defineTool,
     type CopilotSession,
     type PermissionRequest,
     type SessionConfig,
     type SessionEvent,
 } from "@github/copilot-sdk";
-import { assertModelAllowed, getProfile, isHigherSensitivity, matchesTool, applyProfile } from "./policy.js";
+import { assertModelAllowed, getProfile, isHigherSensitivity, matchesTool, applyProfile, sensitivityOrder } from "./policy.js";
 import type {
     EvidenceLedger,
     EvidenceRecord,
+    GovernancePolicy,
     GovernedSessionOptions,
     GovernanceProfile,
     GovernedSdkSession,
@@ -62,10 +64,13 @@ export class GovernedSession {
             active
         );
         const activeRef = { current: active };
-        const governedConfig = GovernedSession.withGovernanceHooks(config, activeRef, options.ledger);
+        const governedRef: { current?: GovernedSession } = {};
+        const configWithBuiltInTools = GovernedSession.withBuiltInGovernanceTools(config, options.policy, governedRef);
+        const governedConfig = GovernedSession.withGovernanceHooks(configWithBuiltInTools, activeRef, options.ledger);
         const session = await options.client.createSession(governedConfig);
         const governed = new GovernedSession(session, options, active);
         governed.activeRef = activeRef;
+        governedRef.current = governed;
         await governed.record("session.created", { model: active.model ?? "runtime-default" });
         return governed;
     }
@@ -94,6 +99,84 @@ export class GovernedSession {
     public async disconnect(): Promise<void> {
         await this.session.disconnect();
         await this.record("session.closed");
+    }
+
+    private static withBuiltInGovernanceTools(
+        config: SessionConfig,
+        policy: GovernancePolicy,
+        governedRef: { current?: GovernedSession }
+    ): SessionConfig {
+        const policyTool = defineTool("read_governance_policy", {
+            description: "Read-only view of the current session state and loaded governance configuration. Use for questions about sensitivity levels, profiles, allowed models, tools, or MCP servers, including requests to lower sensitivity. Configuration changes and sensitivity downgrades are forbidden.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: { type: "string", description: "Optional question or scope, such as 'internal', 'confidential', 'public profile', or 'all'." },
+                },
+            },
+            skipPermission: true,
+            handler: ({ query }: { query?: string }) => {
+                const current = governedRef.current?.profile;
+                return {
+                    currentSession: current ? {
+                        profile: current.name,
+                        sensitivity: current.sensitivity,
+                        environment: current.environment,
+                    } : undefined,
+                    sensitivityLevels: sensitivityOrder,
+                    profiles: Object.fromEntries(Object.entries(policy.profiles)
+                        .filter(([name, profile]) => matchesPolicyQuery(query, name, profile.sensitivity))
+                        .map(([name, profile]) => [name, {
+                            sensitivity: profile.sensitivity,
+                            environment: profile.environment,
+                            model: profile.model,
+                            allowedModels: profile.allowedModels ?? [],
+                            deniedModels: profile.deniedModels ?? [],
+                            tools: profile.tools ?? [],
+                            deniedTools: profile.deniedTools ?? [],
+                            mcpServers: Object.keys(profile.mcpServers ?? {}),
+                        }])),
+                    toolSensitivity: policy.toolSensitivity ?? {},
+                    readOnly: true,
+                    query: query ?? "all",
+                };
+            },
+        });
+        const sensitivityTool = defineTool("set_sensitivity", {
+            description: "Governed control for a requested session sensitivity. Always use for user requests to upgrade or downgrade sensitivity. Downgrades are rejected.",
+            parameters: {
+                type: "object",
+                properties: {
+                    sensitivity: { type: "string", enum: sensitivityOrder },
+                },
+                required: ["sensitivity"],
+            },
+            skipPermission: true,
+            handler: async ({ sensitivity }: { sensitivity: Sensitivity }) => {
+                const governed = governedRef.current!;
+                try {
+                    await governed.setSensitivity(sensitivity);
+                    return { success: true, profile: governed.profile.name, sensitivity: governed.profile.sensitivity };
+                } catch (error) {
+                    return {
+                        success: false,
+                        profile: governed.profile.name,
+                        sensitivity: governed.profile.sensitivity,
+                        error: error instanceof Error ? error.message : String(error),
+                    };
+                }
+            },
+        });
+        const guidance = "Use read_governance_policy to answer questions about the current session and configured profiles, sensitivity levels, allowed models, tools, and MCP servers. Use set_sensitivity for every user request to upgrade or downgrade sensitivity, and do not claim success until that tool returns success. The tool enforces monotonic sensitivity: upward requests can succeed when policy allows them, while downgrade requests are rejected and the session remains at its current sensitivity. Never change governance configuration from chat.";
+        const existingContent = config.systemMessage?.content;
+        return {
+            ...config,
+            tools: [...(config.tools ?? []), policyTool, sensitivityTool],
+            systemMessage: {
+                ...config.systemMessage,
+                content: existingContent ? `${existingContent}\n\n${guidance}` : guidance,
+            },
+        } as SessionConfig;
     }
 
     private static withGovernanceHooks(
@@ -234,6 +317,12 @@ function permissionToolName(request: PermissionRequest): string | undefined {
         return `mcp:${name}`;
     }
     return undefined;
+}
+
+function matchesPolicyQuery(query: string | undefined, profileName: string, sensitivity: Sensitivity): boolean {
+    if (!query) return true;
+    const normalized = query.toLowerCase();
+    return normalized.includes("all") || normalized.includes(profileName.toLowerCase()) || normalized.includes(sensitivity);
 }
 
 function extractSensitivity(data: Record<string, unknown>): Sensitivity | undefined {

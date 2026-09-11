@@ -1,4 +1,4 @@
-const sensitivityOrder = ["public", "internal", "confidential", "restricted"];
+export const sensitivityOrder = ["public", "internal", "confidential", "restricted"];
 export function getProfile(policy, name) {
     const profile = policy.profiles[name];
     if (!profile)
