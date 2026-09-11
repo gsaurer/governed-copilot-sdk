@@ -32,6 +32,7 @@ const debug = process.argv.includes("--debug");
 const colors = {
     cyan: "\x1b[36m",
     blue: "\x1b[34m",
+    red: "\x1b[31m",
     yellow: "\x1b[33m",
     reset: "\x1b[0m",
 };
@@ -59,7 +60,7 @@ governedSession = await GovernedSession.create({
                 reason,
             });
         }
-        logSystem(`Sensitivity upgraded to ${current.sensitivity} (profile=${current.name}; reason=${reason})`);
+        writeChatLine(`${colors.yellow}System:${colors.reset} ${colors.red}Sensitivity upgraded to ${current.sensitivity} (profile=${current.name}; reason=${reason})${colors.reset}`);
     },
     onEvent: (event) => {
         if (event.type === "session.model_change") {
