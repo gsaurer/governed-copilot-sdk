@@ -53,6 +53,7 @@ const governed = await GovernedSession.create({
                 profile: current.name,
                 reason,
             });
+            console.log(`System: Sensitivity upgraded to ${current.sensitivity} (profile=${current.name}; reason=${reason})`);
         }
     },
     onEvent: (event) => {
