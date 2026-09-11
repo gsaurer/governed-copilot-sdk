@@ -35,6 +35,7 @@ export type ProfileConfig = { sensitivity: Sensitivity; environment: string; upg
 export type ConfiguredMcpServer = MCPServerConfig & { command?: string; args?: string[] };
 export type GovernanceConfigFile = {
     ledger?: { type: "localFile"; pathTemplate?: string };
+    turnTimeoutMs?: number;
     toolSensitivity?: Record<string, Sensitivity>;
     mcpServers?: Record<string, ConfiguredMcpServer>;
     models?: { providers: Record<string, ProviderCatalog> };

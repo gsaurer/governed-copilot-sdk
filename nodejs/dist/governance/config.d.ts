@@ -48,6 +48,7 @@ export type GovernanceConfigFile = {
         type: "localFile";
         pathTemplate?: string;
     };
+    turnTimeoutMs?: number;
     toolSensitivity?: Record<string, Sensitivity>;
     mcpServers?: Record<string, ConfiguredMcpServer>;
     models?: {
