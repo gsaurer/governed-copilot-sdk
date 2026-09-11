@@ -36,6 +36,7 @@ const colors = {
     reset: "\x1b[0m",
 };
 let waitingIndicator: WaitingIndicator | undefined;
+let governedSession: GovernedSession | undefined;
 await loadEnvironmentFile(join(dirname(configPath), ".env"));
 const config = expandEnvironmentTemplates(JSON.parse(await readFile(configPath, "utf8")) as Config);
 const policy = { profiles: toGovernanceProfiles(config), toolSensitivity: config.toolSensitivity };
@@ -43,7 +44,7 @@ const initialProfile = process.env.GOVERNED_PROFILE ?? "public";
 const client = new CopilotClient();
 const ledgerPath = resolveLedgerPath(config, configPath);
 let activeModel = toGovernanceProfiles(config)[initialProfile]?.model ?? "runtime default";
-const governed = await GovernedSession.create({
+governedSession = await GovernedSession.create({
     client,
     policy,
     profile: initialProfile,
@@ -92,6 +93,7 @@ const governed = await GovernedSession.create({
     },
 });
 
+const governed = governedSession!;
 const consoleReader = createInterface({ input, output });
 console.log(`Governed chat using ${configPath}`);
 console.log(`Profile: ${governed.profile.name} (${governed.profile.sensitivity})`);
@@ -300,14 +302,14 @@ function createSessionConfig(config: Config, profileName: string): SessionConfig
         mcpServers: resolveProfileMcpServers(config, profile),
         tools: [createGovernancePolicyTool(config)],
         systemMessage: {
-            content: "Use the governance_policy tool to answer questions about configured profiles, sensitivity levels, allowed models, tools, and MCP servers. The governance_policy tool is read-only. Never change governance configuration from chat and do not claim that configuration changed. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools to gather context. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return the tool result to the user. Do not fabricate data or replace an available synthetic tool result with a refusal.",
+            content: "Use the governance_policy tool to answer questions about the current session and configured profiles, sensitivity levels, allowed models, tools, and MCP servers. The governance_policy tool is read-only. Sensitivity is monotonic: never downgrade it, never claim a request to return to public succeeded, and never change governance configuration from chat. A sensitivity change occurs only when governance processes an explicit tool classification or an approved upward control. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools to gather context. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return the tool result to the user. Do not fabricate data or replace an available synthetic tool result with a refusal.",
         },
     } as SessionConfig;
 }
 
 function createGovernancePolicyTool(config: Config) {
     return defineTool("governance_policy", {
-        description: "Read-only view of the loaded governance configuration. Use for questions about sensitivity levels, profiles, allowed models, tools, or MCP servers. Configuration changes are forbidden.",
+        description: "Read-only view of the current session state and loaded governance configuration. Use for questions about sensitivity levels, profiles, allowed models, tools, or MCP servers, including requests to lower sensitivity. Configuration changes and sensitivity downgrades are forbidden.",
         parameters: {
             type: "object",
             properties: {
@@ -316,6 +318,11 @@ function createGovernancePolicyTool(config: Config) {
         },
         skipPermission: true,
         handler: ({ query }: { query?: string }) => ({
+            currentSession: governedSession ? {
+                profile: governedSession.profile.name,
+                sensitivity: governedSession.profile.sensitivity,
+                environment: governedSession.profile.environment,
+            } : undefined,
             sensitivityLevels: ["public", "internal", "confidential", "restricted"],
             profiles: Object.fromEntries(Object.entries(config.profiles)
                 .filter(([name, profile]) => !query || matchesPolicyQuery(query, name, profile.sensitivity))
