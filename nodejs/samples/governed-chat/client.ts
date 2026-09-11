@@ -28,8 +28,6 @@ const configPath = resolveConfigPath();
 const info = process.argv.includes("--info");
 const debug = process.argv.includes("--debug");
 const colors = {
-    cyan: "\x1b[36m",
-    blue: "\x1b[34m",
     yellow: "\x1b[33m",
     reset: "\x1b[0m",
 };
@@ -48,13 +46,32 @@ const governed = await GovernedSession.create({
     ledger: new LocalJsonlLedger(ledgerPath),
     onSensitivityChanged: ({ previous, current, reason }) => {
         if (info) {
-            console.log(`${colors.yellow}[sensitivity updated ${previous.sensitivity} -> ${current.sensitivity}; profile=${current.name}; reason=${reason}]${colors.reset}`);
+            logInfo("sensitivity.upgrade", {
+                previous: previous.sensitivity,
+                current: current.sensitivity,
+                profile: current.name,
+                reason,
+            });
         }
     },
     onEvent: (event) => {
         if (event.type === "session.model_change") {
             activeModel = event.data.newModel;
-            console.log(`${colors.blue}[model: ${activeModel}]${colors.reset}`);
+            if (info) {
+                logInfo("session.model_change", {
+                    previousModel: event.data.previousModel,
+                    newModel: event.data.newModel,
+                    cause: event.data.cause,
+                });
+            }
+        }
+        if (event.type === "tool.execution_start" && info) {
+            logInfo("tool.execution_start", {
+                tool: event.data.toolName,
+                mcpServer: event.data.mcpServerName,
+                mcpTool: event.data.mcpToolName,
+                model: event.data.model,
+            });
         }
         if (!debug) return;
         const data = event.data as Record<string, unknown> | undefined;
@@ -89,7 +106,14 @@ try {
         if (prompt.trim() === "/exit") break;
         if (!prompt.trim()) continue;
         const startedAt = Date.now();
-        console.log(`${colors.cyan}[turn profile=${governed.profile.name} sensitivity=${governed.profile.sensitivity} model=${activeModel}]${colors.reset}`);
+        if (info) {
+            logInfo("turn.start", {
+                profile: governed.profile.name,
+                sensitivity: governed.profile.sensitivity,
+                model: activeModel,
+                prompt,
+            });
+        }
         if (debug) console.error(`[debug turn.start profile=${governed.profile.name} prompt=${JSON.stringify(prompt)}]`);
         try {
             const response = await governed.sendAndWait<{ data?: { content?: string } }>({ prompt });
@@ -108,6 +132,14 @@ try {
 
 function isAbortError(error: unknown): boolean {
     return error instanceof Error && (error.name === "AbortError" || (error as NodeJS.ErrnoException).code === "ABORT_ERR");
+}
+
+function logInfo(event: string, fields: Record<string, unknown>): void {
+    const details = Object.entries(fields)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => `${key}=${typeof value === "string" ? JSON.stringify(value) : String(value)}`)
+        .join(" ");
+    console.log(`${colors.yellow}[info event=${event}${details ? ` ${details}` : ""}]${colors.reset}`);
 }
 
 function resolveConfigPath(): string {
