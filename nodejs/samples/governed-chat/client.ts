@@ -124,6 +124,7 @@ try {
         waitingIndicator = indicator;
         try {
             const response = await governed.sendAndWait<{ data?: { content?: string } }>({ prompt });
+            indicator.stop();
             console.log(`${colors.blue}Assistant:${colors.reset} ${response?.data?.content ?? ""}`);
             if (debug) console.error(`[debug turn.end elapsedMs=${Date.now() - startedAt}]`);
         } catch (error) {
