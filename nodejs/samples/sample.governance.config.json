@@ -17,29 +17,12 @@
       "tools": [
         "*"
       ]
-    },
-    "workiq": {
-      "type": "local",
-      "command": "npx",
-      "args": [
-        "-y",
-        "@microsoft/workiq",
-        "mcp"
-      ],
-      "tools": [
-        "*"
-      ]
-    }
+    }    
   },
   "models": {
     "providers": {
       "github": {
-        "type": "github",
-        "models": {
-          "gpt-4.1": {
-            "id": "${PUBLIC_COPILOT_MODEL:-gpt-4.1}"
-          }
-        }
+        "type": "github"
       },
       "local-mistral": {
         "type": "openai",
@@ -82,33 +65,20 @@
     }
   },
   "executionEnvironments": {
-    "public-github": {
+    "public-env": {
       "models": {
-        "allow": ["github/*"],
-        "deny": ["local-mistral/*", "foundry/gpt-5.5"]
-      },
-      "tools": {
-        "deny": []
-      },
-      "mcpServers": {
-        "deny": []
+        "allow": ["github/*"]
       }
     },
-    "internal-foundry": {
+    "internal-env": {
       "models": {
         "allow": [
           "github/*",
           "foundry/gpt-5.5"
         ]
-      },
-      "tools": {
-        "deny": []
-      },
-      "mcpServers": {
-        "deny": []
       }
     },
-    "confidential-foundry": {
+    "confidential-env": {
       "models": {
         "allow": ["foundry/gpt-5.5"]
       },
@@ -131,27 +101,23 @@
         "deny": [
           "builtin:bash"
         ]
-      },
-      "mcpServers": {
-        "allow": ["internal-data", "workiq"],
-        "deny": []
       }
     }
   },
   "profiles": {
     "public": {
       "sensitivity": "public",
-      "environment": "public-github",
+      "environment": "public-env",
       "upgradeTargets": ["internal", "confidential"]
     },
     "internal": {
       "sensitivity": "internal",
-      "environment": "internal-foundry",
+      "environment": "internal-env",
       "upgradeTargets": ["confidential"]
     },
     "confidential": {
       "sensitivity": "confidential",
-      "environment": "confidential-foundry"
+      "environment": "confidential-env"
     }
   }
 }
