@@ -29,6 +29,8 @@ const configPath = resolveConfigPath();
 const info = process.argv.includes("--info");
 const debug = process.argv.includes("--debug");
 const colors = {
+    cyan: "\x1b[36m",
+    blue: "\x1b[34m",
     yellow: "\x1b[33m",
     reset: "\x1b[0m",
 };
@@ -54,7 +56,7 @@ const governed = await GovernedSession.create({
                 reason,
             });
         }
-        console.log(`System: Sensitivity upgraded to ${current.sensitivity} (profile=${current.name}; reason=${reason})`);
+        console.log(`${colors.yellow}System:${colors.reset} Sensitivity upgraded to ${current.sensitivity} (profile=${current.name}; reason=${reason})`);
     },
     onEvent: (event) => {
         if (event.type === "session.model_change") {
@@ -101,7 +103,7 @@ try {
         let prompt: string;
         if (input.readableEnded) break;
         try {
-            prompt = await consoleReader.question("You: ");
+            prompt = await consoleReader.question(`${colors.cyan}You:${colors.reset} `);
         } catch (error) {
             if (isAbortError(error) || isReadlineClosedError(error)) break;
             throw error;
@@ -120,7 +122,7 @@ try {
         if (debug) console.error(`[debug turn.start profile=${governed.profile.name} prompt=${JSON.stringify(prompt)}]`);
         try {
             const response = await governed.sendAndWait<{ data?: { content?: string } }>({ prompt });
-            console.log(`Assistant: ${response?.data?.content ?? ""}`);
+            console.log(`${colors.blue}Assistant:${colors.reset} ${response?.data?.content ?? ""}`);
             if (debug) console.error(`[debug turn.end elapsedMs=${Date.now() - startedAt}]`);
         } catch (error) {
             if (debug) console.error(`[debug turn.error elapsedMs=${Date.now() - startedAt} error=${error instanceof Error ? error.message : String(error)}]`);
