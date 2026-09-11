@@ -125,6 +125,7 @@
           "builtin:context_board",
           "builtin:skill",
           "governance_policy",
+          "governance_set_sensitivity",
           "mcp:internal-docs-search_internal_docs",
           "mcp:internal-docs-get_sales_data",
           "mcp:internal-docs-get_internal_demo_data",

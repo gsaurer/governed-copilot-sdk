@@ -300,9 +300,9 @@ function createSessionConfig(config: Config, profileName: string): SessionConfig
         providers,
         models,
         mcpServers: resolveProfileMcpServers(config, profile),
-        tools: [createGovernancePolicyTool(config)],
+            tools: [createGovernancePolicyTool(config), createGovernanceSensitivityTool()],
         systemMessage: {
-            content: "Use the governance_policy tool to answer questions about the current session and configured profiles, sensitivity levels, allowed models, tools, and MCP servers. The governance_policy tool is read-only. Sensitivity is monotonic: never downgrade it, never claim a request to return to public succeeded, and never change governance configuration from chat. A sensitivity change occurs only when governance processes an explicit tool classification or an approved upward control. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools to gather context. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return the tool result to the user. Do not fabricate data or replace an available synthetic tool result with a refusal.",
+                content: "Use governance_policy to answer questions about the current session and configured profiles, sensitivity levels, allowed models, tools, and MCP servers. Use governance_set_sensitivity for every user request to upgrade or downgrade sensitivity, and do not claim success until that tool returns success. The tool enforces monotonic sensitivity: upward requests can succeed when policy allows them, while downgrade requests are rejected and the session remains at its current sensitivity. Never change governance configuration from chat. A sensitivity change can also occur when governance processes an explicit tool classification. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-docs-get_sales_data MCP tool. For governance demonstrations, use internal-docs-get_internal_demo_data for Internal data and internal-docs-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return tool results to the user. Do not fabricate data or replace an available tool result with a refusal.",
         },
     } as SessionConfig;
 }
@@ -345,6 +345,37 @@ function createGovernancePolicyTool(config: Config) {
             readOnly: true,
             query: query ?? "all",
         }),
+    });
+}
+
+function createGovernanceSensitivityTool() {
+    return defineTool("governance_set_sensitivity", {
+        description: "Governed control for a requested session sensitivity. Always use for user requests to upgrade or downgrade sensitivity. Downgrades are rejected.",
+        parameters: {
+            type: "object",
+            properties: {
+                sensitivity: { type: "string", enum: ["public", "internal", "confidential", "restricted"] },
+            },
+            required: ["sensitivity"],
+        },
+        skipPermission: true,
+        handler: async ({ sensitivity }: { sensitivity: Sensitivity }) => {
+            try {
+                await governedSession!.setSensitivity(sensitivity);
+                return {
+                    success: true,
+                    profile: governedSession!.profile.name,
+                    sensitivity: governedSession!.profile.sensitivity,
+                };
+            } catch (error) {
+                return {
+                    success: false,
+                    profile: governedSession!.profile.name,
+                    sensitivity: governedSession!.profile.sensitivity,
+                    error: error instanceof Error ? error.message : String(error),
+                };
+            }
+        },
     });
 }
 
