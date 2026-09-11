@@ -98,10 +98,11 @@ console.log("Type /exit to quit.");
 try {
     while (true) {
         let prompt: string;
+        if (input.readableEnded) break;
         try {
             prompt = await consoleReader.question("You: ");
         } catch (error) {
-            if (isAbortError(error)) break;
+            if (isAbortError(error) || isReadlineClosedError(error)) break;
             throw error;
         }
         if (prompt.trim() === "/exit") break;
@@ -133,6 +134,10 @@ try {
 
 function isAbortError(error: unknown): boolean {
     return error instanceof Error && (error.name === "AbortError" || (error as NodeJS.ErrnoException).code === "ABORT_ERR");
+}
+
+function isReadlineClosedError(error: unknown): boolean {
+    return error instanceof Error && (error as NodeJS.ErrnoException).code === "ERR_USE_AFTER_CLOSE";
 }
 
 function logInfo(event: string, fields: Record<string, unknown>): void {
@@ -198,7 +203,11 @@ function resolveProfileModel(config: Config, profile: ProfileConfig): string | u
     if (!reference) return undefined;
     if (reference.endsWith("/*")) return undefined;
     const [providerName, modelName] = reference.split("/");
-    return config.models?.providers[providerName]?.models[modelName]?.id ?? reference;
+    const model = config.models?.providers[providerName]?.models[modelName]?.id ?? reference;
+    if (model.endsWith("/") && providerName === "foundry") {
+        throw new Error(`Foundry model is not configured for profile '${profile.environment}'. Set FOUNDRY_MODEL in the sample .env file.`);
+    }
+    return model;
 }
 
 function resolveProfileMcpServers(config: Config, profile: ProfileConfig): Record<string, MCPServerConfig> | undefined {
