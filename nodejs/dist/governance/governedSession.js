@@ -123,11 +123,11 @@ export class GovernedSession {
         }
         if (event.type === "tool.execution_complete") {
             const data = event.data;
-            const sensitivity = extractSensitivity(data);
             const toolCallId = String(data.toolCallId ?? "");
             const toolName = this.toolNamesByCallId.get(toolCallId)
                 ?? data.toolDescription?.name
                 ?? "unknown";
+            const sensitivity = extractSensitivity(data, toolName);
             this.toolNamesByCallId.delete(toolCallId);
             await this.record("tool.completed", {
                 toolName,
@@ -191,23 +191,45 @@ function permissionToolName(request) {
     }
     return undefined;
 }
-function extractSensitivity(data) {
+function extractSensitivity(data, toolName) {
     const result = data.result;
-    const meta = (result?._meta ?? result?.mcpMeta ?? data._meta ?? data.mcpMeta ?? data.toolTelemetry);
-    const governance = meta?.governance;
-    const value = governance?.sensitivity;
-    if (value === "public" || value === "internal" || value === "confidential" || value === "restricted") {
-        return value;
+    const metadata = [result?._meta, result?.mcpMeta, data._meta, data.mcpMeta, data.toolTelemetry];
+    for (const candidate of metadata) {
+        const meta = candidate;
+        const governance = meta?.governance;
+        const value = governance?.sensitivity ?? meta?.sensitivity ?? meta?.classification ?? meta?.ifc;
+        if (isSensitivity(value))
+            return value;
     }
-    const content = typeof result?.content === "string"
-        ? result.content
-        : Array.isArray(result?.content)
-            ? result.content
-                .filter((item) => typeof item === "object" && item !== null && item.type === "text" && typeof item.text === "string")
-                .map((item) => item.text)
-                .join("\n")
-            : "";
-    return content.match(/Classification:\s*(public|internal|confidential|restricted)/i)?.[1]?.toLowerCase();
+    const content = [
+        result?.content,
+        result?.detailedContent,
+        result?.structuredContent,
+        result?.contents,
+    ].map(stringifyResultContent).filter(Boolean).join("\n");
+    const match = content.match(/(?:classification|sensitivity|sensitivity label|information protection|confidentiality)\s*[:=-]\s*(public|internal|confidential|restricted)/i);
+    if (match)
+        return match[1].toLowerCase();
+    return data.success === true && toolName.startsWith("workiq-") ? "internal" : undefined;
+}
+function isSensitivity(value) {
+    return value === "public" || value === "internal" || value === "confidential" || value === "restricted";
+}
+function stringifyResultContent(value) {
+    if (typeof value === "string")
+        return value;
+    if (Array.isArray(value)) {
+        return value.map((item) => {
+            if (typeof item === "string")
+                return item;
+            if (item && typeof item === "object" && "text" in item && typeof item.text === "string")
+                return item.text;
+            return "";
+        }).filter(Boolean).join("\n");
+    }
+    if (value && typeof value === "object")
+        return JSON.stringify(value);
+    return "";
 }
 function append(ledger, record) {
     return ledger?.append(record) ?? Promise.resolve();
