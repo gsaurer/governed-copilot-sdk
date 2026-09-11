@@ -9,25 +9,25 @@ It starts a public Copilot session through `GovernedSession`, installs a pre-too
 ```powershell
 cd nodejs\samples\governed-chat
 npm install
-npm start -- --config=governance.config.json
+npm start -- --config=../sample.governance.config.json
 ```
 
 Enable the compact colored turn status line with `--info` (the status line is also shown by default):
 
 ```powershell
-npm start -- --config=governance.config.json --info
+npm start -- --config=../sample.governance.config.json --info
 ```
 
 Use `--debug` for the full SDK event stream, tool calls, permission events, warnings, errors, and turn timing:
 
 ```powershell
-npm start -- --config=governance.config.json --debug
+npm start -- --config=../sample.governance.config.json --debug
 ```
 
 When running from `nodejs/`, use the forwarding script instead:
 
 ```powershell
-npm start -- --config=samples/governed-chat/governance.config.json
+npm start -- --config=samples/sample.governance.config.json
 ```
 
 The config path can be absolute or relative to the directory where `npm start` runs:

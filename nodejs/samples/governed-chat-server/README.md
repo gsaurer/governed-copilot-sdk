@@ -12,10 +12,10 @@ npm install
 npm start
 ```
 
-Set `GOVERNANCE_CONFIG` to use another governance configuration. The default is the main governed-chat sample configuration:
+Set `GOVERNANCE_CONFIG` to use another governance configuration. The default is the shared sample configuration:
 
 ```powershell
-$env:GOVERNANCE_CONFIG = "..\governed-chat\governance.config.json"
+$env:GOVERNANCE_CONFIG = "..\sample.governance.config.json"
 npm start
 ```
 

@@ -11,7 +11,7 @@ cd nodejs
 npm install
 npm run build
 npm install --prefix samples\governed-chat
-npm start -- --config=samples/governed-chat/governance.config.json
+npm start -- --config=samples/sample.governance.config.json
 ```
 
 The sample loads the selected governance JSON and its adjacent `.env`, keeps one Copilot session, denies tools outside the active profile before execution, and writes hash-chained evidence to the configured ledger path.

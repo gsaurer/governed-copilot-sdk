@@ -178,7 +178,7 @@ function resolveConfigPath(): string {
     const args = process.argv.slice(2);
     const equalsArg = args.find((arg) => arg.startsWith("--config="));
     const separateIndex = args.indexOf("--config");
-    const value = equalsArg?.slice("--config=".length) ?? (separateIndex >= 0 ? args[separateIndex + 1] : undefined) ?? process.env.GOVERNANCE_CONFIG ?? "governance.config.json";
+    const value = equalsArg?.slice("--config=".length) ?? (separateIndex >= 0 ? args[separateIndex + 1] : undefined) ?? process.env.GOVERNANCE_CONFIG ?? "../sample.governance.config.json";
     return resolve(process.cwd(), value);
 }
 

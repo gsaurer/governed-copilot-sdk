@@ -12,7 +12,7 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "internal-docs-mcp-server.mjs"
+        "governed-chat/internal-docs-mcp-server.mjs"
       ],
       "tools": [
         "search_internal_docs",

@@ -4,7 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
-const defaultConfigPath = fileURLToPath(new URL("../governed-chat/governance.config.json", import.meta.url));
+const defaultConfigPath = fileURLToPath(new URL("../sample.governance.config.json", import.meta.url));
 const configPath = resolve(process.env.GOVERNANCE_CONFIG ?? defaultConfigPath);
 const port = Number(process.env.PORT ?? "8120");
 const { policy, ledgerPath, sessionConfigFor } = await loadGovernanceConfig(configPath);
