@@ -208,7 +208,8 @@ function extractSensitivity(data) {
         result?.structuredContent,
         result?.contents,
     ].map(stringifyResultContent).filter(Boolean).join("\n");
-    const match = content.match(/(?:classification|sensitivity|sensitivity label|information protection|confidentiality)\s*[:=-]\s*(public|internal|confidential|restricted)/i);
+    const match = content.match(/(?:classification|sensitivity|sensitivity label|information protection|confidentiality)\s*[:=-]\s*(public|internal|confidential|restricted)/i)
+        ?? content.match(/\b(public|internal|confidential|restricted)\s*:/i);
     if (match)
         return match[1].toLowerCase();
 }
