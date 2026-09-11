@@ -16,4 +16,11 @@ A governance wrapper should keep one Copilot session so conversation context is 
 
 ## Initial implementation
 
-The first implementation targets Node.js and depends on `@github/copilot-sdk`. 
+The first implementation targets Node.js and depends on `@github/copilot-sdk`.
+
+## Documentation
+
+* [Governed sessions](./governed-sessions.md): sensitivity profiles, tool classification, and monotonic upgrades.
+* [Evidence ledger](./evidence-ledger.md): append-only execution evidence and verification.
+
+The runnable sample is in [`nodejs/samples/governed-chat`](../nodejs/samples/governed-chat/README.md).
