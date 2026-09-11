@@ -96,20 +96,21 @@
     },
     "internal-foundry": {
       "models": {
-        "allow": ["foundry/gpt-5.5"],
-        "deny": ["github/gpt-4.1", "local-mistral/*"]
+        "allow": [
+          "github/*",
+          "foundry/gpt-5.5"
+        ]
       },
       "tools": {
         "deny": []
       },
       "mcpServers": {
-        "allow": ["internal-data", "workiq"]
+        "deny": []
       }
     },
     "confidential-foundry": {
       "models": {
-        "allow": ["foundry/gpt-5.5"],
-        "deny": ["github/gpt-4.1", "local-mistral/*"]
+        "allow": ["foundry/gpt-5.5"]
       },
       "tools": {
         "allow": [
@@ -125,16 +126,15 @@
           "builtin:skill",
           "builtin:read_governance_policy",
           "builtin:set_sensitivity",
-          "mcp:internal-data-search_internal_docs",
-          "mcp:internal-data-get_sales_data",
-          "mcp:internal-data-get_internal_demo_data",
-          "mcp:internal-data-get_confidential_demo_data",
-          "mcp:workiq-search_confidential_context",
-          "mcp:workiq-get_people_context"
+          "mcp:internal-data:*"
+        ],
+        "deny": [
+          "builtin:bash"
         ]
       },
       "mcpServers": {
-        "allow": ["internal-data", "workiq"]
+        "allow": ["internal-data", "workiq"],
+        "deny": []
       }
     }
   },

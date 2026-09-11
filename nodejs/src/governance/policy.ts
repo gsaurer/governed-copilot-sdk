@@ -25,7 +25,7 @@ export function isHigherSensitivity(candidate: Sensitivity, current: Sensitivity
 
 export function matchesTool(toolName: string, filters: string[]): boolean {
     return filters.some((filter) =>
-        filter === toolName || (filter.endsWith(":*") && toolName.startsWith(filter.slice(0, -1)))
+        filter === toolName || (filter.endsWith("*") && toolName.startsWith(filter.slice(0, -1)))
     );
 }
 

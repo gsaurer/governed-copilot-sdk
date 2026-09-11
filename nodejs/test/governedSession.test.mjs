@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { GovernedSession } from "../dist/index.js";
+import { GovernedSession, matchesTool } from "../dist/index.js";
 
 function makePolicy(toolSensitivity) {
   return {
@@ -76,6 +76,11 @@ test("exact toolSensitivity match still upgrades sensitivity", async () => {
   await completeTool(fakeSession, "mcp:internal-docs-get_sales_data");
 
   assert.equal(governed.profile.name, "internal");
+});
+
+test("tool policy supports trailing wildcards", () => {
+  assert.equal(matchesTool("mcp:internal-data-get_sales_data", ["mcp:internal-data-* ".trim()]), true);
+  assert.equal(matchesTool("mcp:workiq-search_context", ["mcp:internal-data-* ".trim()]), false);
 });
 
 test("create() auto-injects read_governance_policy and set_sensitivity builtin tools", async () => {
