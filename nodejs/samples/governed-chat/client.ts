@@ -119,11 +119,14 @@ try {
             });
         }
         if (debug) console.error(`[debug turn.start profile=${governed.profile.name} prompt=${JSON.stringify(prompt)}]`);
+        const stopWaiting = startWaitingIndicator();
         try {
             const response = await governed.sendAndWait<{ data?: { content?: string } }>({ prompt });
+            stopWaiting();
             console.log(`${colors.blue}Assistant:${colors.reset} ${response?.data?.content ?? ""}`);
             if (debug) console.error(`[debug turn.end elapsedMs=${Date.now() - startedAt}]`);
         } catch (error) {
+            stopWaiting();
             if (debug) console.error(`[debug turn.error elapsedMs=${Date.now() - startedAt} error=${error instanceof Error ? error.message : String(error)}]`);
             throw error;
         }
@@ -148,6 +151,24 @@ function logInfo(event: string, fields: Record<string, unknown>): void {
         .map(([key, value]) => `${key}=${typeof value === "string" ? JSON.stringify(value) : String(value)}`)
         .join(" ");
     console.log(`${colors.yellow}[info event=${event}${details ? ` ${details}` : ""}]${colors.reset}`);
+}
+
+function startWaitingIndicator(): () => void {
+    const frames = ["|", "/", "-", "\\"];
+    let frame = 0;
+    let active = true;
+    const render = () => {
+        if (!active) return;
+        process.stderr.write(`\r${colors.yellow}System:${colors.reset} Waiting for assistant ${frames[frame++ % frames.length]}`);
+    };
+    render();
+    const timer = setInterval(render, 120);
+    return () => {
+        if (!active) return;
+        active = false;
+        clearInterval(timer);
+        process.stderr.write("\r\x1b[2K");
+    };
 }
 
 function resolveConfigPath(): string {
