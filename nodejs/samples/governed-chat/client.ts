@@ -68,6 +68,7 @@ const governed = await GovernedSession.create({
                     cause: event.data.cause,
                 });
             }
+            console.log(`${colors.yellow}System:${colors.reset} Model changed to ${activeModel}`);
         }
         if (event.type === "tool.execution_start" && info) {
             logInfo("tool.execution_start", {
@@ -94,8 +95,7 @@ console.log(`Governed chat using ${configPath}`);
 console.log(`Profile: ${governed.profile.name} (${governed.profile.sensitivity})`);
 console.log(`SessionId: ${governed.sessionId}`);
 console.log(`Ledger: ${ledgerPath}`);
-console.log(`Model: ${activeModel}`);
-console.log(`Info: ${info ? "enabled" : "disabled"}; Debug: ${debug ? "enabled" : "disabled"}`);
+console.log(`${colors.yellow}System:${colors.reset} Model: ${activeModel}`);
 console.log("Type /exit to quit.");
 
 try {
