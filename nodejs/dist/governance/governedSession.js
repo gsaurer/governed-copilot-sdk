@@ -50,6 +50,9 @@ export class GovernedSession {
     sendAndWait(...args) {
         return this.session.sendAndWait(...args);
     }
+    async abort() {
+        await this.session.abort();
+    }
     async setSensitivity(sensitivity, reason = "explicit-request") {
         if (!isHigherSensitivity(sensitivity, this.active.sensitivity)) {
             throw new Error(`Sensitivity cannot move from '${this.active.sensitivity}' to '${sensitivity}'.`);

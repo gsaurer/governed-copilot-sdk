@@ -13,6 +13,7 @@ export declare class GovernedSession {
     get sessionId(): string;
     get profile(): GovernanceProfile;
     sendAndWait<T = unknown>(...args: unknown[]): Promise<T>;
+    abort(): Promise<void>;
     setSensitivity(sensitivity: Sensitivity, reason?: string): Promise<void>;
     disconnect(): Promise<void>;
     private static withBuiltInGovernanceTools;

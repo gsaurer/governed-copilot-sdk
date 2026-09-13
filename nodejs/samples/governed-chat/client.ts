@@ -18,8 +18,9 @@ const colors = {
 let waitingIndicator: WaitingIndicator | undefined;
 let governedSession: GovernedSession | undefined;
 await loadEnvironmentFile(join(dirname(configPath), ".env"));
-const { policy, ledgerPath, sessionConfigFor } = await loadGovernanceConfig(configPath);
+const { config, policy, ledgerPath, sessionConfigFor } = await loadGovernanceConfig(configPath);
 const initialProfile = process.env.GOVERNED_PROFILE ?? "public";
+const turnTimeoutMs = config.turnTimeoutMs ?? 60_000;
 const copilotStatePath = resolve(dirname(configPath), ".copilot-state");
 const client = new CopilotClient({ baseDirectory: copilotStatePath, workingDirectory: dirname(configPath) });
 let activeModel = policy.profiles[initialProfile]?.model ?? "runtime default";
@@ -86,6 +87,7 @@ console.log(`Profile: ${governed.profile.name} (${governed.profile.sensitivity})
 console.log(`SessionId: ${governed.sessionId}`);
 console.log(`Ledger: ${ledgerPath}`);
 console.log(`Copilot state: ${copilotStatePath}`);
+console.log(`Turn timeout: ${turnTimeoutMs}ms`);
 console.log(`${colors.yellow}System:${colors.reset} Sensitivity: ${governed.profile.sensitivity}; Model: ${activeModel}; Type /exit to quit.`);
 
 try {
@@ -113,12 +115,17 @@ try {
         const indicator = startWaitingIndicator();
         waitingIndicator = indicator;
         try {
-            const response = await governed.sendAndWait<{ data?: { content?: string } }>({ prompt });
+            const response = await governed.sendAndWait<{ data?: { content?: string } }>({ prompt }, turnTimeoutMs);
             indicator.stop();
             console.log(`${colors.blue}Assistant:${colors.reset} ${response?.data?.content ?? ""}`);
             if (debug) console.error(`[debug turn.end elapsedMs=${Date.now() - startedAt}]`);
         } catch (error) {
             if (debug) console.error(`[debug turn.error elapsedMs=${Date.now() - startedAt} error=${error instanceof Error ? error.message : String(error)}]`);
+            if (isSessionTimeoutError(error)) {
+                await governed.abort();
+                logSystem(`Turn timed out after ${turnTimeoutMs}ms and was aborted.`);
+                continue;
+            }
             throw error;
         } finally {
             indicator.stop();
@@ -137,6 +144,10 @@ function isAbortError(error: unknown): boolean {
 
 function isReadlineClosedError(error: unknown): boolean {
     return error instanceof Error && (error as NodeJS.ErrnoException).code === "ERR_USE_AFTER_CLOSE";
+}
+
+function isSessionTimeoutError(error: unknown): boolean {
+    return error instanceof Error && /^Timeout after \d+ms waiting for session\.idle$/.test(error.message);
 }
 
 function logInfo(event: string, fields: Record<string, unknown>): void {

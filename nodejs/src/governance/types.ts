@@ -57,6 +57,7 @@ export interface GovernedSessionOptions {
 export interface GovernedSdkSession {
     readonly sessionId: string;
     sendAndWait(...args: unknown[]): Promise<unknown>;
+    abort(): Promise<void>;
     setModel(model: string): Promise<void>;
     on(handler: (event: SessionEvent) => void): () => void;
     disconnect(): Promise<void>;
