@@ -30,16 +30,16 @@ governedSession = await GovernedSession.create({
     profile: initialProfile,
     config: withAppSystemMessage(sessionConfigFor(initialProfile)),
     ledger: new LocalJsonlLedger(ledgerPath),
-    onSensitivityChanged: ({ previous, current, reason }) => {
+    onClassificationChanged: ({ previous, current, reason }) => {
         if (info) {
-            logInfo("sensitivity.upgrade", {
-                previous: previous.sensitivity,
-                current: current.sensitivity,
+            logInfo("classification.upgrade", {
+                previous: previous.classifications,
+                current: current.classifications,
                 profile: current.name,
                 reason,
             });
         }
-        writeChatLine(`${colors.yellow}System:${colors.reset} ${colors.red}Sensitivity upgraded to ${current.sensitivity} (profile=${current.name}; reason=${reason})${colors.reset}`);
+        writeChatLine(`${colors.yellow}System:${colors.reset} ${colors.red}Profile upgraded to ${current.name} (classifications=${current.classifications.join(", ")}; reason=${reason})${colors.reset}`);
     },
     onEvent: (event) => {
         if (event.type === "session.model_change") {
@@ -83,12 +83,12 @@ governedSession = await GovernedSession.create({
 const governed = governedSession!;
 const consoleReader = createInterface({ input, output });
 console.log(`Governed chat using ${configPath}`);
-console.log(`Profile: ${governed.profile.name} (${governed.profile.sensitivity})`);
+console.log(`Profile: ${governed.profile.name} (${governed.profile.classifications.join(", ")})`);
 console.log(`SessionId: ${governed.sessionId}`);
 console.log(`Ledger: ${ledgerPath}`);
 console.log(`Copilot state: ${copilotStatePath}`);
 console.log(`Turn timeout: ${turnTimeoutMs}ms`);
-console.log(`${colors.yellow}System:${colors.reset} Sensitivity: ${governed.profile.sensitivity}; Model: ${activeModel}; Type /exit to quit.`);
+console.log(`${colors.yellow}System:${colors.reset} Classifications: ${governed.profile.classifications.join(", ")}; Model: ${activeModel}; Type /exit to quit.`);
 
 try {
     while (true) {
@@ -106,7 +106,7 @@ try {
         if (info) {
             logInfo("turn.start", {
                 profile: governed.profile.name,
-                sensitivity: governed.profile.sensitivity,
+                classifications: governed.profile.classifications,
                 model: activeModel,
                 prompt,
             });
@@ -218,7 +218,7 @@ function withAppSystemMessage(config: SessionConfig): SessionConfig {
     return {
         ...config,
         systemMessage: {
-            content: "A sensitivity change can also occur when governance processes an explicit tool classification. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools. Do not infer sensitivity for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-data-get_sales_data MCP tool. For governance demonstrations, use internal-data-get_internal_demo_data for Internal data and internal-data-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal, Confidential, or Restricted in metadata or content, treat that label as authoritative and increase session sensitivity accordingly. Return tool results to the user. Do not fabricate data or replace an available tool result with a refusal.",
+            content: "A profile transition can occur when governance processes an explicit tool classification. For requests about workplace context, meetings, documents, people, or project status, use the workiq MCP tools. Do not infer classification for WorkIQ results unless the tool response explicitly supplies a label. For requests for sales data, call the internal-data-get_sales_data MCP tool. For governance demonstrations, use internal-data-get_internal_demo_data for Internal data and internal-data-get_confidential_demo_data for Confidential data. When any tool response is explicitly marked Internal or Confidential in metadata or content, treat that label as authoritative and increase session classification accordingly. Return tool results to the user. Do not fabricate data or replace an available tool result with a refusal.",
         },
     };
 }

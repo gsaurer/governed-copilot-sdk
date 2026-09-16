@@ -1,9 +1,13 @@
-export const sensitivityOrder = ["public", "internal", "confidential", "restricted"];
 export function getProfile(policy, name) {
     const profile = policy.profiles[name];
     if (!profile)
         throw new Error(`Unknown governance profile '${name}'.`);
     return profile;
+}
+export function defaultProfileName(policy) {
+    if (!policy.profiles[policy.defaultProfile])
+        throw new Error(`Unknown default governance profile '${policy.defaultProfile}'.`);
+    return policy.defaultProfile;
 }
 export function assertModelAllowed(profile, model) {
     if (!model)
@@ -15,8 +19,13 @@ export function assertModelAllowed(profile, model) {
         throw new Error(`Model '${model}' is not allowed by profile '${profile.name}'.`);
     }
 }
-export function isHigherSensitivity(candidate, current) {
-    return sensitivityOrder.indexOf(candidate) > sensitivityOrder.indexOf(current);
+export function isHigherClassification(policy, candidate, currentProfile) {
+    const targetProfile = policy.classifications[candidate];
+    return Boolean(targetProfile && currentProfile.upgradeTargets.includes(targetProfile));
+}
+export function profileForClassification(policy, classification) {
+    const profileName = policy.classifications[classification];
+    return profileName ? policy.profiles[profileName] : undefined;
 }
 export function matchesTool(toolName, filters) {
     return filters.some((filter) => filter === toolName || (filter.endsWith("*") && toolName.startsWith(filter.slice(0, -1))));

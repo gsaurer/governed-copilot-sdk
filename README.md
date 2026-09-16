@@ -4,6 +4,14 @@ A language-oriented governance sidecar for the GitHub Copilot SDK.
 
 The first implementation targets Node.js and uses the published `@github/copilot-sdk` package as a dependency. Governance policy and evidence-ledger behavior live above the SDK through its public hooks, permissions, model selection, MCP, and session-event APIs.
 
+![Governed Copilot SDK overview showing extensible agents entering a Copilot SDK harness governed by policy, bounded model and tool routes, governed context, and an evidence ledger.](docs/governed-sdk-overview.svg)
+
+## How it works
+
+A message enters the governed session, the SDK binds it to a policy profile and selects an eligible model, and the model proposes a response or a tool call. Every tool call is authorized against policy before it executes; labelled results can raise the session's classification, which narrows what can happen next. Every decision is appended to an evidence ledger.
+
+![The governed session loop: establish session, select model route, model reasoning, tool proposal, policy enforcement, bounded tool call, label and evaluate result, response.](docs/governed-session-loop.svg)
+
 ## Prerequisites
 
 - Node.js 22 or later.

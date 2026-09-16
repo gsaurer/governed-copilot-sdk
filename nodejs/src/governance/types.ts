@@ -6,11 +6,12 @@ import type {
     SessionEvent,
 } from "@github/copilot-sdk";
 
-export type Sensitivity = "public" | "internal" | "confidential" | "restricted";
+export type DataClassification = string;
 
 export interface GovernanceProfile {
     name: string;
-    sensitivity: Sensitivity;
+    classifications: string[];
+    upgradeTargets: string[];
     environment?: string;
     model?: string;
     allowedModels?: string[];
@@ -21,8 +22,13 @@ export interface GovernanceProfile {
 }
 
 export interface GovernancePolicy {
+    organization: string;
+    policyName: string;
+    defaultProfile: string;
     profiles: Record<string, GovernanceProfile>;
-    toolSensitivity?: Record<string, Sensitivity>;
+    classifications: Record<string, string>;
+    toolClassifications?: Record<string, DataClassification>;
+    modelClassification?: { enabled: boolean };
 }
 
 export interface EvidenceRecord {
@@ -30,7 +36,7 @@ export interface EvidenceRecord {
     timestamp: string;
     sessionId?: string;
     profile: string;
-    sensitivity: Sensitivity;
+    classification?: DataClassification;
     environment?: string;
     data?: Record<string, unknown>;
 }
@@ -47,7 +53,7 @@ export interface GovernedSessionOptions {
     config?: SessionConfig;
     modelDefinitions?: ProviderModelConfig[];
     onEvent?: (event: SessionEvent) => void;
-    onSensitivityChanged?: (change: {
+    onClassificationChanged?: (change: {
         previous: GovernanceProfile;
         current: GovernanceProfile;
         reason: string;

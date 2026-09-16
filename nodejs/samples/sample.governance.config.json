@@ -1,9 +1,20 @@
 {
+  "organization": "Sample Org",
+  "policyName": "Governed Copilot SDK Sample Policy",
   "ledger": {
     "type": "localFile",
     "pathTemplate": ".copilot-state/governance/evidence.jsonl"
   },
-  "toolSensitivity": {
+  "defaultProfile": "public",
+  "classifications": {
+    "public": "public",
+    "internal": "internal",
+    "confidential": "confidential"
+  },
+  "modelClassification": {
+    "enabled": true
+  },
+  "toolClassifications": {
     "mcp:internal-data-get_internal_demo_data": "internal",
     "mcp:internal-data-get_confidential_demo_data": "confidential"
   },
@@ -98,7 +109,7 @@
           "builtin:context_board",
           "builtin:skill",
           "builtin:read_governance_policy",
-          "builtin:set_sensitivity",
+          "builtin:set_classification",
           "mcp:internal-data:*"
         ],
         "deny": [
@@ -109,17 +120,14 @@
   },
   "profiles": {
     "public": {
-      "sensitivity": "public",
       "environment": "public-env",
       "upgradeTargets": ["internal", "confidential"]
     },
     "internal": {
-      "sensitivity": "internal",
       "environment": "internal-env",
       "upgradeTargets": ["confidential"]
     },
     "confidential": {
-      "sensitivity": "confidential",
       "environment": "confidential-env"
     }
   }

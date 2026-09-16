@@ -1,0 +1,219 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1200" viewBox="0 0 1600 1200" role="img" aria-labelledby="title desc">
+  <title id="title">Governed Copilot SDK overview</title>
+  <desc id="desc">A Copilot SDK harness sits at the center. An in-process governance policy governs built-in and user-provided model routes, context assembly, and an extensible set of tools and data through a governed session enforcement boundary. User chat, autonomous agents, custom agent frameworks, and other implementations enter from the left; an evidence ledger is written below.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#111827" flood-opacity="0.12"/>
+    </filter>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0969da"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#b45309"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#15803d"/>
+    </marker>
+    <style>
+      .title { font: 700 38px 'Segoe UI', sans-serif; fill: #111827; letter-spacing: 0; }
+      .subtitle { font: 400 17px 'Segoe UI', sans-serif; fill: #4b5563; letter-spacing: 0; }
+      .section { font: 700 14px 'Segoe UI', sans-serif; fill: #374151; letter-spacing: 1.4px; }
+      .box-title { font: 700 20px 'Segoe UI', sans-serif; fill: #111827; letter-spacing: 0; }
+      .box-copy { font: 400 14px 'Segoe UI', sans-serif; fill: #4b5563; letter-spacing: 0; }
+      .core-title { font: 700 25px 'Segoe UI', sans-serif; fill: #ffffff; letter-spacing: 0; }
+      .core-panel-title { font: 700 20px 'Segoe UI', sans-serif; fill: #ffffff; letter-spacing: 0; }
+      .core-section { font: 700 14px 'Segoe UI', sans-serif; fill: #93c5fd; letter-spacing: 1.4px; }
+      .core-copy { font: 400 14px 'Segoe UI', sans-serif; fill: #d1d5db; letter-spacing: 0; }
+      .chip { font: 600 12px 'Segoe UI', sans-serif; fill: #dbeafe; letter-spacing: 0; }
+      .node-title { font: 700 16px 'Segoe UI', sans-serif; fill: #111827; letter-spacing: 0; }
+      .node-copy { font: 400 12px 'Segoe UI', sans-serif; fill: #6b7280; letter-spacing: 0; }
+      .flow { fill: none; stroke: #0969da; stroke-width: 3; marker-end: url(#arrow-blue); }
+      .policy-flow { fill: none; stroke: #b45309; stroke-width: 3; marker-end: url(#arrow-amber); }
+      .evidence-flow { fill: none; stroke: #15803d; stroke-width: 3; marker-end: url(#arrow-green); }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1200" fill="#f8fafc"/>
+  <path d="M0 0H1600V210C1335 170 1130 230 890 195C610 154 353 218 0 170Z" fill="#eef4fb"/>
+  <g opacity="0.5" stroke="#dbe3ed" stroke-width="1">
+    <path d="M80 1130H1520"/><path d="M80 1090H1520"/><path d="M80 1050H1520"/>
+    <path d="M120 70V1130"/><path d="M1480 70V1130"/>
+  </g>
+
+  <text x="80" y="72" class="title">Governed Copilot SDK</text>
+  <text x="80" y="106" class="subtitle">Policy controls which models and tools the agent may use; every consequential path crosses the enforcement boundary.</text>
+
+  <!-- Policy authority -->
+  <g filter="url(#shadow)">
+    <rect x="455" y="135" width="530" height="150" rx="8" fill="#fff7ed" stroke="#b45309" stroke-width="2"/>
+  </g>
+  <g transform="translate(490 171)" fill="none" stroke="#b45309" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M24 0L45 8V25C45 40 35 51 24 57C13 51 3 40 3 25V8Z" fill="#ffedd5"/>
+    <path d="M15 27L22 34L35 20"/>
+  </g>
+  <text x="565" y="178" class="section">GOVERNANCE POLICY</text>
+  <text x="565" y="210" class="box-title">Policy configuration</text>
+  <text x="565" y="237" class="box-copy">Profiles • classifications • model routes • tool permissions</text>
+  <rect x="565" y="251" width="128" height="22" rx="11" fill="#ffedd5"/><text x="579" y="266" class="node-copy" fill="#92400e">config-defined</text>
+  <rect x="703" y="251" width="112" height="22" rx="11" fill="#ffedd5"/><text x="716" y="266" class="node-copy" fill="#92400e">fail closed</text>
+  <rect x="825" y="251" width="144" height="22" rx="11" fill="#ffedd5"/><text x="838" y="266" class="node-copy" fill="#92400e">monotonic upgrades</text>
+
+  <!-- Agent implementations -->
+  <g filter="url(#shadow)"><rect x="80" y="330" width="315" height="535" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="2"/></g>
+  <text x="110" y="365" class="section">AGENT IMPLEMENTATIONS</text>
+  <circle cx="143" cy="424" r="24" fill="#e2e8f0" stroke="#475569" stroke-width="2"/>
+  <circle cx="143" cy="416" r="7" fill="none" stroke="#475569" stroke-width="2"/>
+  <path d="M130 438C134 427 152 427 156 438" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+  <text x="184" y="419" class="box-title">User chat</text>
+  <text x="184" y="442" class="box-copy">Prompt + selected profile</text>
+
+  <g transform="translate(119 480)" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M24 0L45 12V36L24 48L3 36V12Z" fill="#e2e8f0"/>
+    <circle cx="24" cy="24" r="6"/>
+    <path d="M24 7V14M24 34V41M7 24H14M34 24H41"/>
+  </g>
+  <text x="184" y="499" class="box-title">Autonomous agents</text>
+  <text x="184" y="522" class="box-copy">Goals • events • delegated work</text>
+
+  <rect x="110" y="550" width="255" height="55" rx="6" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+  <path d="M128 577L138 559L148 577Z" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+  <text x="160" y="573" class="node-title">Agent framework</text>
+  <text x="160" y="592" class="node-copy">Any external planner or framework</text>
+
+  <rect x="110" y="615" width="255" height="55" rx="6" fill="#f8fafc" stroke="#64748b" stroke-width="1.5"/>
+  <path d="M127 643L135 635L143 643L135 651Z" fill="#e2e8f0" stroke="#475569" stroke-width="1.5"/>
+  <text x="160" y="638" class="node-title">Custom agent</text>
+  <text x="160" y="657" class="node-copy">Any planner or agent runtime</text>
+
+  <rect x="110" y="680" width="255" height="42" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="129" y="706" class="node-title">+ Additional implementations</text>
+
+  <rect x="110" y="748" width="255" height="83" rx="6" fill="#f1f5f9" stroke="#cbd5e1"/>
+  <text x="129" y="771" class="node-title">Policy-bound session</text>
+  <text x="129" y="793" class="node-copy">Public → Internal → Confidential</text>
+  <text x="129" y="813" class="node-copy">Protection only increases per session</text>
+
+  <!-- Central SDK and enforcement -->
+  <g filter="url(#shadow)"><rect x="470" y="345" width="500" height="350" rx="10" fill="#111827" stroke="#0969da" stroke-width="3"/></g>
+  <rect x="492" y="367" width="456" height="306" rx="7" fill="none" stroke="#60a5fa" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="520" y="401" class="core-section">GOVERNED EXECUTION BOUNDARY</text>
+  <g transform="translate(520 432)" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="0" y="0" width="60" height="60" rx="14" fill="#1f2937"/>
+    <path d="M18 30L27 39L44 20"/>
+    <circle cx="47" cy="45" r="7" fill="#0969da" stroke="#93c5fd"/>
+  </g>
+  <text x="603" y="454" class="core-title">Copilot SDK</text>
+  <text x="603" y="479" class="core-copy">AGENT HARNESS • loop • sessions • streamed events</text>
+  <rect x="520" y="525" width="400" height="112" rx="7" fill="#1f2937" stroke="#4b9be8" stroke-width="1.5"/>
+  <g transform="translate(544 548)" fill="none" stroke="#93c5fd" stroke-width="2.5">
+    <path d="M20 0L38 7V21C38 34 29 43 20 48C11 43 2 34 2 21V7Z"/>
+    <path d="M12 23L18 29L29 17"/>
+  </g>
+  <text x="604" y="558" class="core-panel-title">GovernedSession enforcement</text>
+  <text x="604" y="583" class="core-copy">Authorize before execution • update session labels</text>
+  <text x="604" y="605" class="core-copy">Authorize model/tool route • record ledger evidence</text>
+  <rect x="544" y="646" width="103" height="20" rx="10" fill="#1d4ed8"/><text x="558" y="660" class="chip">POLICY CHECK</text>
+  <rect x="657" y="646" width="112" height="20" rx="10" fill="#1d4ed8"/><text x="671" y="660" class="chip">WATER MARK</text>
+  <rect x="779" y="646" width="117" height="20" rx="10" fill="#1d4ed8"/><text x="793" y="660" class="chip">BOUNDED ACCESS</text>
+
+  <!-- Models -->
+  <rect x="1070" y="335" width="450" height="275" rx="10" fill="none" stroke="#0969da" stroke-width="2"/>
+  <text x="1095" y="368" class="section">GOVERNED MODEL ROUTES</text>
+  <g transform="translate(1095 392)">
+    <rect width="125" height="150" rx="7" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+    <circle cx="62" cy="42" r="24" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <path d="M50 42L59 51L76 33" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+    <text x="62" y="97" text-anchor="middle" class="node-title">Public model</text>
+    <text x="62" y="133" text-anchor="middle" class="node-copy">public route</text>
+  </g>
+  <g transform="translate(1230 392)">
+    <rect width="125" height="150" rx="7" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+    <path d="M42 60L62 23L82 60Z" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><circle cx="62" cy="47" r="8" fill="#2563eb"/>
+    <text x="62" y="97" text-anchor="middle" class="node-title">Private model</text>
+    <text x="62" y="133" text-anchor="middle" class="node-copy">enterprise route</text>
+  </g>
+  <g transform="translate(1365 392)">
+    <rect width="125" height="150" rx="7" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+    <path d="M42 58V34L62 22L82 34V58L62 70Z" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/><path d="M52 43H72M52 51H72" stroke="#2563eb" stroke-width="2"/>
+    <text x="62" y="97" text-anchor="middle" class="node-title">Local model</text>
+    <text x="62" y="133" text-anchor="middle" class="node-copy">on-prem route</text>
+  </g>
+  <g transform="translate(1095 553)">
+    <rect width="395" height="40" rx="7" fill="#ffffff" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <circle cx="25" cy="20" r="11" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+    <path d="M19 20H31M25 14V26" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+    <text x="47" y="17" class="node-title">BYOM • Bring your own model</text>
+    <text x="47" y="33" class="node-copy">Custom provider or endpoint • policy governed</text>
+  </g>
+
+  <!-- Tools -->
+  <rect x="1070" y="620" width="450" height="290" rx="10" fill="none" stroke="#0f766e" stroke-width="2"/>
+  <text x="1095" y="653" class="section">GOVERNED TOOLS &amp; DATA</text>
+  <rect x="1395" y="638" width="95" height="22" rx="11" fill="#ccfbf1"/><text x="1408" y="653" class="node-copy">EXTENSIBLE</text>
+  <g transform="translate(1095 677)">
+    <rect width="190" height="70" rx="7" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+    <path d="M20 20H43V43H20Z M25 15H48V38" fill="none" stroke="#0f766e" stroke-width="2"/>
+    <text x="61" y="30" class="node-title">MCP server A</text><text x="61" y="50" class="node-copy">Structured data</text>
+  </g>
+  <g transform="translate(1300 677)">
+    <rect width="190" height="70" rx="7" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+    <circle cx="33" cy="34" r="17" fill="none" stroke="#0f766e" stroke-width="2"/><path d="M23 34H43M33 24V44" stroke="#0f766e" stroke-width="2"/>
+    <text x="61" y="30" class="node-title">MCP server B</text><text x="61" y="50" class="node-copy">Knowledge search</text>
+  </g>
+  <g transform="translate(1095 760)">
+    <rect width="190" height="70" rx="7" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+    <path d="M18 43L32 18L48 43Z" fill="none" stroke="#0f766e" stroke-width="2.5"/><path d="M25 36H41" stroke="#0f766e" stroke-width="2"/>
+    <text x="61" y="30" class="node-title">MCP server C</text><text x="61" y="50" class="node-copy">Cloud resources</text>
+  </g>
+  <g transform="translate(1300 760)">
+    <rect width="190" height="70" rx="7" fill="#f0fdfa" stroke="#0f766e" stroke-width="1.5"/>
+    <ellipse cx="33" cy="23" rx="17" ry="7" fill="none" stroke="#0f766e" stroke-width="2"/><path d="M16 23V44C16 53 50 53 50 44V23M16 34C16 43 50 43 50 34" fill="none" stroke="#0f766e" stroke-width="2"/>
+    <text x="61" y="30" class="node-title">Internal data</text><text x="61" y="50" class="node-copy">Protected sources</text>
+  </g>
+  <g transform="translate(1095 843)">
+    <rect width="395" height="44" rx="7" fill="#ffffff" stroke="#0f766e" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <circle cx="27" cy="22" r="12" fill="#ccfbf1" stroke="#0f766e" stroke-width="1.5"/>
+    <path d="M21 22H33M27 16V28" stroke="#0f766e" stroke-width="2" stroke-linecap="round"/>
+    <text x="50" y="19" class="node-title">Additional governed integrations</text>
+    <text x="50" y="35" class="node-copy">MCP servers • APIs • data stores • actuators</text>
+  </g>
+
+  <!-- Governed context -->
+  <g filter="url(#shadow)"><rect x="1070" y="940" width="450" height="165" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/></g>
+  <g transform="translate(1445 958)" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 6H43V45H4Z"/><path d="M12 16H35M12 25H35M12 34H27"/>
+    <path d="M48 18H55V52H20V49" stroke-dasharray="4 3"/>
+  </g>
+  <text x="1095" y="971" class="section">GOVERNED CONTEXT • PROPOSED</text>
+  <text x="1095" y="1002" class="box-title">Policy-controlled context assembly</text>
+  <text x="1095" y="1027" class="box-copy">Prompts • history • retrieved documents • tool results</text>
+  <text x="1095" y="1049" class="box-copy">Memory • skills • shared knowledge • agent messages</text>
+  <rect x="1095" y="1065" width="176" height="20" rx="10" fill="#dbeafe"/><text x="1109" y="1079" class="node-copy">labels + provenance</text>
+  <rect x="1281" y="1065" width="184" height="20" rx="10" fill="#dbeafe"/><text x="1295" y="1079" class="node-copy">include • redact • refuse</text>
+
+  <!-- Evidence -->
+  <g filter="url(#shadow)"><rect x="470" y="775" width="500" height="125" rx="8" fill="#f0fdf4" stroke="#15803d" stroke-width="2"/></g>
+  <g transform="translate(500 805)" fill="none" stroke="#15803d" stroke-width="2.5">
+    <path d="M6 7H42V48H6Z"/><path d="M13 17H35M13 27H35M13 37H28"/><circle cx="41" cy="46" r="9" fill="#dcfce7"/><path d="M37 46L40 49L46 42"/>
+  </g>
+  <text x="565" y="817" class="section">EVIDENCE LEDGER</text>
+  <text x="565" y="848" class="box-title">Hash-chained evidence ledger</text>
+  <text x="565" y="873" class="box-copy">Decisions • classifications • tool outcomes • policy version</text>
+
+  <!-- Flows -->
+  <path d="M395 520H470" class="flow"/>
+  <text x="432" y="488" text-anchor="middle" class="node-copy">request</text>
+  <text x="432" y="505" text-anchor="middle" class="node-copy">or action</text>
+  <path d="M720 285V345" class="policy-flow"/>
+  <text x="736" y="322" class="node-copy">policy</text>
+  <path d="M970 450H1070" class="flow"/>
+  <text x="984" y="433" class="node-copy">eligible model</text>
+  <path d="M970 586H1035V742H1070" class="flow"/>
+  <text x="1018" y="720" transform="rotate(-90 1018 720)" class="node-copy">bounded tool call</text>
+  <path d="M720 695V775" class="evidence-flow"/>
+  <text x="736" y="741" class="node-copy">ledger events</text>
+  <path d="M900 695V720H995V1022H1070" class="flow"/>
+  <text x="978" y="930" transform="rotate(-90 978 930)" class="node-copy">governed context</text>
+  <text x="80" y="1164" class="node-copy">Solid arrows: governed runtime flow</text>
+  <text x="1520" y="1164" text-anchor="end" class="node-copy">Model proposes • policy authorizes • bounded capability executes</text>
+</svg>

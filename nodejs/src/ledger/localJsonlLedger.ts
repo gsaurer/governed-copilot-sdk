@@ -20,6 +20,17 @@ export class LocalJsonlLedger implements EvidenceLedger {
         await appendFile(this.path, `${canonicalJson(stored)}\n`, "utf8");
     }
 
+    public async read(): Promise<StoredRecord[]> {
+        let content: string;
+        try {
+            content = await readFile(this.path, "utf8");
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+            throw error;
+        }
+        return content.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line) as StoredRecord);
+    }
+
     public async verify(): Promise<boolean> {
         let previousHash: string | null = null;
         let content: string;

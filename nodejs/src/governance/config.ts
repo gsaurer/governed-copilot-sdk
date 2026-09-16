@@ -6,7 +6,7 @@ import type {
     ProviderModelConfig,
     SessionConfig,
 } from "@github/copilot-sdk";
-import type { GovernancePolicy, GovernanceProfile, Sensitivity } from "./types.js";
+import type { GovernancePolicy, GovernanceProfile, DataClassification } from "./types.js";
 
 export type ProviderModelCatalogEntry = {
     id: string;
@@ -31,12 +31,17 @@ export type ExecutionEnvironmentConfig = {
     tools?: { allow?: string[]; deny?: string[] };
     mcpServers?: { allow?: string[]; deny?: string[] };
 };
-export type ProfileConfig = { sensitivity: Sensitivity; environment: string; upgradeTargets?: string[] };
+export type ProfileConfig = { environment: string; upgradeTargets?: string[] };
 export type ConfiguredMcpServer = MCPServerConfig & { command?: string; args?: string[] };
 export type GovernanceConfigFile = {
+    organization: string;
+    policyName: string;
     ledger?: { type: "localFile"; pathTemplate?: string };
     turnTimeoutMs?: number;
-    toolSensitivity?: Record<string, Sensitivity>;
+    defaultProfile: string;
+    classifications: Record<string, string>;
+    toolClassifications?: Record<string, DataClassification>;
+    modelClassification?: { enabled: boolean };
     mcpServers?: Record<string, ConfiguredMcpServer>;
     models?: { providers: Record<string, ProviderCatalog> };
     executionEnvironments: Record<string, ExecutionEnvironmentConfig>;
@@ -50,14 +55,31 @@ export async function loadGovernanceConfig(configPath: string): Promise<{
     ledgerPath: string;
     sessionConfigFor: (profileName: string) => SessionConfig;
 }> {
-    const raw = expandEnvironmentTemplates(JSON.parse(await readFile(configPath, "utf8"))) as GovernanceConfigFile;
+    return loadGovernanceConfigObject(JSON.parse(await readFile(configPath, "utf8")), configPath);
+}
+
+export function loadGovernanceConfigObject(document: unknown, sourcePath: string): {
+    config: GovernanceConfigFile;
+    policy: GovernancePolicy;
+    ledgerPath: string;
+    sessionConfigFor: (profileName: string) => SessionConfig;
+} {
+    const raw = expandEnvironmentTemplates(document) as GovernanceConfigFile;
     validateGovernanceConfig(raw);
-    const policy = { profiles: toGovernanceProfiles(raw), toolSensitivity: raw.toolSensitivity };
+    const policy = {
+        organization: raw.organization,
+        policyName: raw.policyName,
+        defaultProfile: raw.defaultProfile,
+        profiles: toGovernanceProfiles(raw),
+        classifications: raw.classifications,
+        toolClassifications: raw.toolClassifications,
+        modelClassification: raw.modelClassification,
+    };
     return {
         config: raw,
         policy,
-        ledgerPath: resolveLedgerPath(raw, configPath),
-        sessionConfigFor: (profileName: string) => createSessionConfig(raw, profileName, dirname(configPath)),
+        ledgerPath: resolveLedgerPath(raw, sourcePath),
+        sessionConfigFor: (profileName: string) => createSessionConfig(raw, profileName, dirname(sourcePath)),
     };
 }
 
@@ -71,15 +93,32 @@ export function validateGovernanceConfig(config: GovernanceConfigFile): void {
     if (!config.executionEnvironments || typeof config.executionEnvironments !== "object") {
         throw new Error("executionEnvironments_is_required");
     }
+    if (typeof config.organization !== "string" || !config.organization.trim()) {
+        throw new Error("organization_is_required");
+    }
+    if (typeof config.policyName !== "string" || !config.policyName.trim()) {
+        throw new Error("policyName_is_required");
+    }
     if (!config.profiles || typeof config.profiles !== "object") {
         throw new Error("profiles_is_required");
     }
-    for (const [name, profile] of Object.entries(config.profiles)) {
-        if (profile.sensitivity !== name) {
-            throw new Error(`profile_${name}_sensitivity_must_match_its_key`);
+    if (typeof config.defaultProfile !== "string" || !config.profiles[config.defaultProfile]) {
+        throw new Error("defaultProfile_must_reference_a_configured_profile");
+    }
+    if (!config.classifications || typeof config.classifications !== "object") {
+        throw new Error("classifications_is_required");
+    }
+    for (const [classification, profileName] of Object.entries(config.classifications)) {
+        if (typeof profileName !== "string" || !config.profiles[profileName]) {
+            throw new Error(`classification_${classification}_must_reference_a_configured_profile`);
         }
+    }
+    for (const [name, profile] of Object.entries(config.profiles)) {
         if (typeof profile.environment !== "string" || !config.executionEnvironments[profile.environment]) {
             throw new Error(`profile_${name}_must_reference_a_configured_execution_environment`);
+        }
+        if (profile.upgradeTargets?.some((target) => !config.profiles[target])) {
+            throw new Error(`profile_${name}_upgradeTargets_must_reference_configured_profiles`);
         }
     }
 }
@@ -104,7 +143,10 @@ export function environmentFor(config: GovernanceConfigFile, profile: ProfileCon
 export function toGovernanceProfiles(config: GovernanceConfigFile): Record<string, GovernanceProfile> {
     return Object.fromEntries(Object.entries(config.profiles).map(([name, profile]) => [name, {
         name,
-        sensitivity: profile.sensitivity,
+        classifications: Object.entries(config.classifications)
+            .filter(([, profileName]) => profileName === name)
+            .map(([classification]) => classification),
+        upgradeTargets: profile.upgradeTargets ?? [],
         environment: profile.environment,
         model: resolveProfileModel(config, profile),
         allowedModels: environmentFor(config, profile).models?.allow,
@@ -176,7 +218,7 @@ export function createSessionConfig(config: GovernanceConfigFile, profileName: s
         }
     }
     return {
-        sensitivity: profile.sensitivity,
+        classification: Object.entries(config.classifications).find((entry) => entry[1] === profileName)?.[0],
         model: resolveProfileModel(config, profile),
         providers,
         models,

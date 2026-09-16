@@ -68,10 +68,10 @@ async function createSession(request: IncomingMessage, response: ServerResponse)
         config: sessionConfigFor(profile),
         ledger: new LocalJsonlLedger(ledgerPath),
         onEvent: (event) => publish(session, event),
-        onSensitivityChanged: ({ previous, current, reason }) => publish(session, {
-            type: "governance.sensitivity_upgraded",
+        onClassificationChanged: ({ previous, current, reason }) => publish(session, {
+            type: "governance.profile_upgraded",
             timestamp: new Date().toISOString(),
-            data: { previous: previous.sensitivity, current: current.sensitivity, profile: current.name, reason },
+            data: { previousClassifications: previous.classifications, currentClassifications: current.classifications, profile: current.name, reason },
         }),
     });
     session = { governed, events: new Set(), busy: false };
@@ -79,7 +79,7 @@ async function createSession(request: IncomingMessage, response: ServerResponse)
     sendJson(response, 201, {
         sessionId: governed.sessionId,
         profile: governed.profile.name,
-        sensitivity: governed.profile.sensitivity,
+        classifications: governed.profile.classifications,
     });
 }
 
@@ -112,7 +112,7 @@ function subscribe(session: ServerSession, request: IncomingMessage, response: S
 async function deleteSession(id: string, session: ServerSession, response: ServerResponse): Promise<void> {
     session.events.forEach((client) => client.end());
     sessions.delete(id);
-    await session.governed.disconnect();
+    await session.governed.disconnect("session-deleted-by-user");
     sendJson(response, 204, undefined);
 }
 

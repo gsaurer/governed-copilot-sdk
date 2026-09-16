@@ -2,14 +2,25 @@ import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, resolve } from "node:path";
 /** Reads, `${VAR:-default}`-expands, and validates a governance.config.json file. */
 export async function loadGovernanceConfig(configPath) {
-    const raw = expandEnvironmentTemplates(JSON.parse(await readFile(configPath, "utf8")));
+    return loadGovernanceConfigObject(JSON.parse(await readFile(configPath, "utf8")), configPath);
+}
+export function loadGovernanceConfigObject(document, sourcePath) {
+    const raw = expandEnvironmentTemplates(document);
     validateGovernanceConfig(raw);
-    const policy = { profiles: toGovernanceProfiles(raw), toolSensitivity: raw.toolSensitivity };
+    const policy = {
+        organization: raw.organization,
+        policyName: raw.policyName,
+        defaultProfile: raw.defaultProfile,
+        profiles: toGovernanceProfiles(raw),
+        classifications: raw.classifications,
+        toolClassifications: raw.toolClassifications,
+        modelClassification: raw.modelClassification,
+    };
     return {
         config: raw,
         policy,
-        ledgerPath: resolveLedgerPath(raw, configPath),
-        sessionConfigFor: (profileName) => createSessionConfig(raw, profileName, dirname(configPath)),
+        ledgerPath: resolveLedgerPath(raw, sourcePath),
+        sessionConfigFor: (profileName) => createSessionConfig(raw, profileName, dirname(sourcePath)),
     };
 }
 export function validateGovernanceConfig(config) {
@@ -22,15 +33,32 @@ export function validateGovernanceConfig(config) {
     if (!config.executionEnvironments || typeof config.executionEnvironments !== "object") {
         throw new Error("executionEnvironments_is_required");
     }
+    if (typeof config.organization !== "string" || !config.organization.trim()) {
+        throw new Error("organization_is_required");
+    }
+    if (typeof config.policyName !== "string" || !config.policyName.trim()) {
+        throw new Error("policyName_is_required");
+    }
     if (!config.profiles || typeof config.profiles !== "object") {
         throw new Error("profiles_is_required");
     }
-    for (const [name, profile] of Object.entries(config.profiles)) {
-        if (profile.sensitivity !== name) {
-            throw new Error(`profile_${name}_sensitivity_must_match_its_key`);
+    if (typeof config.defaultProfile !== "string" || !config.profiles[config.defaultProfile]) {
+        throw new Error("defaultProfile_must_reference_a_configured_profile");
+    }
+    if (!config.classifications || typeof config.classifications !== "object") {
+        throw new Error("classifications_is_required");
+    }
+    for (const [classification, profileName] of Object.entries(config.classifications)) {
+        if (typeof profileName !== "string" || !config.profiles[profileName]) {
+            throw new Error(`classification_${classification}_must_reference_a_configured_profile`);
         }
+    }
+    for (const [name, profile] of Object.entries(config.profiles)) {
         if (typeof profile.environment !== "string" || !config.executionEnvironments[profile.environment]) {
             throw new Error(`profile_${name}_must_reference_a_configured_execution_environment`);
+        }
+        if (profile.upgradeTargets?.some((target) => !config.profiles[target])) {
+            throw new Error(`profile_${name}_upgradeTargets_must_reference_configured_profiles`);
         }
     }
 }
@@ -54,7 +82,10 @@ export function environmentFor(config, profile) {
 export function toGovernanceProfiles(config) {
     return Object.fromEntries(Object.entries(config.profiles).map(([name, profile]) => [name, {
             name,
-            sensitivity: profile.sensitivity,
+            classifications: Object.entries(config.classifications)
+                .filter(([, profileName]) => profileName === name)
+                .map(([classification]) => classification),
+            upgradeTargets: profile.upgradeTargets ?? [],
             environment: profile.environment,
             model: resolveProfileModel(config, profile),
             allowedModels: environmentFor(config, profile).models?.allow,
@@ -129,7 +160,7 @@ export function createSessionConfig(config, profileName, baseDir) {
         }
     }
     return {
-        sensitivity: profile.sensitivity,
+        classification: Object.entries(config.classifications).find((entry) => entry[1] === profileName)?.[0],
         model: resolveProfileModel(config, profile),
         providers,
         models,

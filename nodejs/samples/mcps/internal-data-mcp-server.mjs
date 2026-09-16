@@ -47,5 +47,5 @@ rl.on("line", (line) => {
         : `Internal documentation result. Classification: ${sensitivity}. ${guidance(sensitivity)}`;
   const result = { content: [{ type: "text", text }] };
   if (name === "get_internal_demo_data" || name === "get_confidential_demo_data") return send(message.id, result);
-  return send(message.id, { ...result, _meta: { governance: { sensitivity, source: "governed-chat-sample" } } });
+  return send(message.id, { ...result, _meta: { governance: { classification: sensitivity, source: "governed-chat-sample" } } });
 });

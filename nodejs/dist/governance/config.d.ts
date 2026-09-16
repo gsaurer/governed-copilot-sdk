@@ -1,5 +1,5 @@
 import type { MCPServerConfig, SessionConfig } from "@github/copilot-sdk";
-import type { GovernancePolicy, GovernanceProfile, Sensitivity } from "./types.js";
+import type { GovernancePolicy, GovernanceProfile, DataClassification } from "./types.js";
 export type ProviderModelCatalogEntry = {
     id: string;
     providerModelId?: string;
@@ -35,7 +35,6 @@ export type ExecutionEnvironmentConfig = {
     };
 };
 export type ProfileConfig = {
-    sensitivity: Sensitivity;
     environment: string;
     upgradeTargets?: string[];
 };
@@ -44,12 +43,19 @@ export type ConfiguredMcpServer = MCPServerConfig & {
     args?: string[];
 };
 export type GovernanceConfigFile = {
+    organization: string;
+    policyName: string;
     ledger?: {
         type: "localFile";
         pathTemplate?: string;
     };
     turnTimeoutMs?: number;
-    toolSensitivity?: Record<string, Sensitivity>;
+    defaultProfile: string;
+    classifications: Record<string, string>;
+    toolClassifications?: Record<string, DataClassification>;
+    modelClassification?: {
+        enabled: boolean;
+    };
     mcpServers?: Record<string, ConfiguredMcpServer>;
     models?: {
         providers: Record<string, ProviderCatalog>;
@@ -64,6 +70,12 @@ export declare function loadGovernanceConfig(configPath: string): Promise<{
     ledgerPath: string;
     sessionConfigFor: (profileName: string) => SessionConfig;
 }>;
+export declare function loadGovernanceConfigObject(document: unknown, sourcePath: string): {
+    config: GovernanceConfigFile;
+    policy: GovernancePolicy;
+    ledgerPath: string;
+    sessionConfigFor: (profileName: string) => SessionConfig;
+};
 export declare function validateGovernanceConfig(config: GovernanceConfigFile): void;
 export declare function expandEnvironmentTemplates(value: unknown): any;
 export declare function environmentFor(config: GovernanceConfigFile, profile: ProfileConfig): ExecutionEnvironmentConfig;

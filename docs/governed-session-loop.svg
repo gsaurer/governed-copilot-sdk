@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">The governed session loop</title>
+  <desc id="desc">A message enters the governed session. The SDK establishes session protections and selects an eligible model. The model reasons and proposes either a response or a tool call. Policy enforcement denies the proposal or permits a bounded tool invocation. Labelled tool results return through the harness to the reasoning loop. The final response is checked before release, and an evidence ledger records every decision and outcome.</desc>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#111827" flood-opacity="0.12"/>
+    </filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#dbe3ed" stroke-width="1"/>
+    </pattern>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#0969da"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#b45309"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#0f766e"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#15803d"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#c2410c"/>
+    </marker>
+    <style>
+      .title { font: 700 40px 'Segoe UI', sans-serif; fill: #111827; letter-spacing: 0; }
+      .subtitle { font: 400 17px 'Segoe UI', sans-serif; fill: #4b5563; letter-spacing: 0; }
+      .eyebrow { font: 700 13px 'Segoe UI', sans-serif; fill: #4b5563; letter-spacing: 1.5px; }
+      .harness-eyebrow { font: 700 13px 'Segoe UI', sans-serif; fill: #93c5fd; letter-spacing: 1.5px; }
+      .harness-title { font: 700 24px 'Segoe UI', sans-serif; fill: #ffffff; letter-spacing: 0; }
+      .step-number { font: 700 14px 'Segoe UI', sans-serif; fill: #ffffff; letter-spacing: 0; }
+      .step-title { font: 700 18px 'Segoe UI', sans-serif; fill: #111827; letter-spacing: 0; }
+      .step-copy { font: 400 13px 'Segoe UI', sans-serif; fill: #4b5563; letter-spacing: 0; }
+      .dark-title { font: 700 18px 'Segoe UI', sans-serif; fill: #ffffff; letter-spacing: 0; }
+      .dark-copy { font: 400 13px 'Segoe UI', sans-serif; fill: #d1d5db; letter-spacing: 0; }
+      .label { font: 600 12px 'Segoe UI', sans-serif; fill: #4b5563; letter-spacing: 0; }
+      .decision { font: 700 17px 'Segoe UI', sans-serif; fill: #111827; letter-spacing: 0; }
+      .chip { font: 700 11px 'Segoe UI', sans-serif; fill: #ffffff; letter-spacing: 0.7px; }
+      .footer { font: 600 14px 'Segoe UI', sans-serif; fill: #374151; letter-spacing: 0; }
+      .blue-flow { fill: none; stroke: #0969da; stroke-width: 3; marker-end: url(#arrow-blue); }
+      .amber-flow { fill: none; stroke: #b45309; stroke-width: 3; marker-end: url(#arrow-amber); }
+      .teal-flow { fill: none; stroke: #0f766e; stroke-width: 3; marker-end: url(#arrow-teal); }
+      .green-flow { fill: none; stroke: #15803d; stroke-width: 3; marker-end: url(#arrow-green); }
+      .red-flow { fill: none; stroke: #c2410c; stroke-width: 3; marker-end: url(#arrow-red); }
+      .evidence-flow { fill: none; stroke: #15803d; stroke-width: 2; stroke-dasharray: 6 6; marker-end: url(#arrow-green); }
+    </style>
+  </defs>
+
+  <rect width="1600" height="1000" fill="#f8fafc"/>
+  <rect x="40" y="35" width="1520" height="910" rx="16" fill="url(#grid)" opacity="0.55"/>
+  <path d="M0 0H1600V190C1280 150 1050 218 790 178C500 133 260 194 0 155Z" fill="#eef4fb"/>
+
+  <text x="80" y="70" class="title">The governed session loop</text>
+  <text x="80" y="106" class="subtitle">The model proposes. The SDK authorizes. A bounded capability executes. Results return through the same governed boundary.</text>
+
+  <!-- Message enters and leaves the harness -->
+  <g filter="url(#shadow)">
+    <rect x="65" y="360" width="210" height="150" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="2"/>
+  </g>
+  <g transform="translate(94 391)" fill="none" stroke="#475569" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 2H48V35H23L12 46V35H2Z" fill="#f1f5f9"/>
+    <path d="M12 13H38M12 23H31"/>
+  </g>
+  <text x="160" y="401" class="eyebrow">TRIGGER</text>
+  <text x="94" y="451" class="step-title">Message or event</text>
+  <text x="94" y="476" class="step-copy">Prompt • identity</text>
+  <text x="94" y="496" class="step-copy">Selected profile</text>
+
+  <g filter="url(#shadow)">
+    <rect x="65" y="665" width="210" height="150" rx="8" fill="#ffffff" stroke="#0f766e" stroke-width="2"/>
+  </g>
+  <circle cx="120" cy="715" r="25" fill="#ccfbf1" stroke="#0f766e" stroke-width="2"/>
+  <path d="M107 715L116 724L134 704" fill="none" stroke="#0f766e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="160" y="710" class="eyebrow">OUTCOME</text>
+  <text x="94" y="762" class="step-title">Response</text>
+  <text x="94" y="787" class="step-copy">Authorized release to the requester</text>
+
+  <!-- Governed harness boundary -->
+  <g filter="url(#shadow)">
+    <rect x="330" y="155" width="895" height="705" rx="12" fill="#111827" stroke="#0969da" stroke-width="3"/>
+  </g>
+  <rect x="350" y="175" width="855" height="665" rx="9" fill="none" stroke="#60a5fa" stroke-width="2" stroke-dasharray="9 8"/>
+  <text x="380" y="211" class="harness-eyebrow">GOVERNED EXECUTION BOUNDARY</text>
+  <text x="380" y="247" class="harness-title">GovernedSession</text>
+  <text x="620" y="245" class="dark-copy">session state • context assembly • capability mediation • release control</text>
+
+  <!-- Step 1 -->
+  <g filter="url(#shadow)">
+    <rect x="380" y="290" width="235" height="145" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+  </g>
+  <circle cx="411" cy="320" r="17" fill="#475569"/><text x="411" y="325" text-anchor="middle" class="step-number">1</text>
+  <text x="440" y="326" class="step-title">Establish session</text>
+  <text x="405" y="361" class="step-copy">Bind identity and policy profile</text>
+  <text x="405" y="384" class="step-copy">Apply confidentiality controls</text>
+  <rect x="405" y="400" width="178" height="21" rx="10" fill="#e2e8f0"/>
+  <text x="494" y="415" text-anchor="middle" class="label">MONOTONIC PROTECTION</text>
+
+  <!-- Step 2 -->
+  <g filter="url(#shadow)">
+    <rect x="670" y="290" width="235" height="145" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  </g>
+  <circle cx="701" cy="320" r="17" fill="#2563eb"/><text x="701" y="325" text-anchor="middle" class="step-number">2</text>
+  <text x="730" y="326" class="step-title">Select model route</text>
+  <text x="695" y="361" class="step-copy">Filter by policy + classification</text>
+  <text x="695" y="384" class="step-copy">Choose only an eligible endpoint</text>
+  <rect x="695" y="400" width="177" height="21" rx="10" fill="#dbeafe"/>
+  <text x="783" y="415" text-anchor="middle" class="label">NO SILENT FALLBACK</text>
+
+  <!-- Step 3 -->
+  <g filter="url(#shadow)">
+    <rect x="960" y="290" width="215" height="145" rx="8" fill="#eff6ff" stroke="#2563eb" stroke-width="2"/>
+  </g>
+  <circle cx="991" cy="320" r="17" fill="#2563eb"/><text x="991" y="325" text-anchor="middle" class="step-number">3</text>
+  <text x="1020" y="326" class="step-title">Model reasoning</text>
+  <text x="985" y="361" class="step-copy">Consume governed context</text>
+  <text x="985" y="384" class="step-copy">Propose text or a tool call</text>
+  <path d="M997 409H1138" stroke="#93c5fd" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="1018" cy="409" r="5" fill="#2563eb"/><circle cx="1068" cy="409" r="5" fill="#2563eb"/><circle cx="1118" cy="409" r="5" fill="#2563eb"/>
+
+  <!-- Step 4: tool proposal -->
+  <g filter="url(#shadow)">
+    <rect x="960" y="500" width="215" height="130" rx="8" fill="#f0fdfa" stroke="#0f766e" stroke-width="2"/>
+  </g>
+  <circle cx="991" cy="530" r="17" fill="#0f766e"/><text x="991" y="535" text-anchor="middle" class="step-number">4</text>
+  <text x="1020" y="536" class="step-title">Tool proposal</text>
+  <text x="985" y="571" class="step-copy">Tool • arguments • destination</text>
+  <text x="985" y="594" class="step-copy">The model requests; it cannot invoke</text>
+  <rect x="985" y="606" width="159" height="19" rx="9" fill="#ccfbf1"/>
+  <text x="1064" y="620" text-anchor="middle" class="label">SDK HOLDS AUTHORITY</text>
+
+  <!-- Step 5: policy decision -->
+  <path d="M788 477L890 565L788 653L686 565Z" fill="#fff7ed" stroke="#b45309" stroke-width="3" filter="url(#shadow)"/>
+  <circle cx="788" cy="518" r="17" fill="#b45309"/><text x="788" y="523" text-anchor="middle" class="step-number">5</text>
+  <text x="788" y="554" text-anchor="middle" class="decision">Policy enforced</text>
+  <text x="788" y="578" text-anchor="middle" class="step-copy">Permit with duties?</text>
+  <text x="788" y="602" text-anchor="middle" class="label">YES / NO</text>
+
+  <!-- Step 6: bounded tool call -->
+  <g filter="url(#shadow)">
+    <rect x="400" y="500" width="215" height="130" rx="8" fill="#f0fdfa" stroke="#0f766e" stroke-width="2"/>
+  </g>
+  <circle cx="431" cy="530" r="17" fill="#0f766e"/><text x="431" y="535" text-anchor="middle" class="step-number">6</text>
+  <text x="460" y="536" class="step-title">Bounded tool call</text>
+  <text x="425" y="571" class="step-copy">SDK invokes the permitted capability</text>
+  <text x="425" y="594" class="step-copy">Constrained scope • route • lifetime</text>
+  <rect x="425" y="606" width="158" height="19" rx="9" fill="#ccfbf1"/>
+  <text x="504" y="620" text-anchor="middle" class="label">LEAST AUTHORITY</text>
+
+  <!-- Step 7: result handling -->
+  <g filter="url(#shadow)">
+    <rect x="470" y="690" width="435" height="115" rx="8" fill="#f8fafc" stroke="#64748b" stroke-width="2"/>
+  </g>
+  <circle cx="501" cy="720" r="17" fill="#475569"/><text x="501" y="725" text-anchor="middle" class="step-number">7</text>
+  <text x="530" y="726" class="step-title">Label and evaluate result</text>
+  <text x="495" y="761" class="step-copy">Update the session classification • check return path • preserve provenance</text>
+  <rect x="495" y="777" width="116" height="19" rx="9" fill="#e2e8f0"/><text x="553" y="791" text-anchor="middle" class="label">RE-ENTER LOOP</text>
+  <rect x="622" y="777" width="133" height="19" rx="9" fill="#e2e8f0"/><text x="688" y="791" text-anchor="middle" class="label">RELEASE CHECK</text>
+
+  <!-- Harness flows -->
+  <path d="M275 435H380" class="blue-flow"/><text x="327" y="421" text-anchor="middle" class="label">request</text>
+  <path d="M615 362H670" class="blue-flow"/>
+  <path d="M905 362H960" class="blue-flow"/>
+  <path d="M1068 435V500" class="teal-flow"/>
+  <path d="M960 565H890" class="amber-flow"/>
+  <path d="M686 565H615" class="teal-flow"/>
+  <text x="650" y="548" text-anchor="middle" class="label">YES</text>
+  <path d="M508 630V690" class="teal-flow"/>
+  <path d="M905 748H925V458H1068V435" class="blue-flow"/>
+  <text x="935" y="680" class="label">labelled result</text>
+  <path d="M788 653V690" class="red-flow"/>
+  <text x="805" y="677" class="label">NO: refuse</text>
+  <path d="M688 805V825H400V740H275" class="blue-flow"/>
+  <text x="441" y="817" class="label">final response</text>
+
+  <!-- Policy authority -->
+  <g filter="url(#shadow)">
+    <rect x="1275" y="205" width="260" height="185" rx="8" fill="#fff7ed" stroke="#b45309" stroke-width="2"/>
+  </g>
+  <path d="M1310 247L1335 237L1360 247V269C1360 287 1348 300 1335 307C1322 300 1310 287 1310 269Z" fill="#ffedd5" stroke="#b45309" stroke-width="2.5"/>
+  <path d="M1324 271L1332 279L1347 260" fill="none" stroke="#b45309" stroke-width="2.5" stroke-linecap="round"/>
+  <text x="1380" y="253" class="eyebrow">GOVERNANCE POLICY</text>
+  <text x="1305" y="331" class="step-title">Policy configuration</text>
+  <text x="1305" y="355" class="step-copy">Routes • permissions • constraints</text>
+  <text x="1305" y="375" class="step-copy">Duties • upgrade targets</text>
+  <path d="M1275 285H1225" class="amber-flow"/>
+
+  <!-- Evidence plane -->
+  <g filter="url(#shadow)">
+    <rect x="1275" y="660" width="260" height="185" rx="8" fill="#f0fdf4" stroke="#15803d" stroke-width="2"/>
+  </g>
+  <g transform="translate(1307 702)" fill="none" stroke="#15803d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 2H42V49H3Z" fill="#dcfce7"/>
+    <path d="M12 14H33M12 24H33M12 34H27"/>
+    <circle cx="40" cy="46" r="8" fill="#dcfce7"/><path d="M36 46L39 49L44 42"/>
+  </g>
+  <text x="1370" y="718" class="eyebrow">EVIDENCE LEDGER</text>
+  <text x="1305" y="777" class="step-title">Evidence ledger</text>
+  <text x="1305" y="801" class="step-copy">Inputs • decisions • outcomes • policy</text>
+  <text x="1305" y="821" class="step-copy">Appended to a local or pluggable ledger</text>
+  <path d="M1225 752H1275" class="evidence-flow"/>
+
+  <!-- Legend -->
+  <rect x="330" y="895" width="895" height="50" rx="8" fill="#ffffff" stroke="#cbd5e1"/>
+  <circle cx="365" cy="920" r="7" fill="#2563eb"/><text x="382" y="925" class="footer">Reasoning + routing</text>
+  <circle cx="570" cy="920" r="7" fill="#b45309"/><text x="587" y="925" class="footer">Policy decision</text>
+  <circle cx="755" cy="920" r="7" fill="#0f766e"/><text x="772" y="925" class="footer">Bounded execution</text>
+  <circle cx="965" cy="920" r="7" fill="#15803d"/><text x="982" y="925" class="footer">Evidence</text>
+</svg>

@@ -14,6 +14,18 @@ export class LocalJsonlLedger {
         const stored = { ...body, hash };
         await appendFile(this.path, `${canonicalJson(stored)}\n`, "utf8");
     }
+    async read() {
+        let content;
+        try {
+            content = await readFile(this.path, "utf8");
+        }
+        catch (error) {
+            if (error.code === "ENOENT")
+                return [];
+            throw error;
+        }
+        return content.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    }
     async verify() {
         let previousHash = null;
         let content;

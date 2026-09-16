@@ -5,7 +5,7 @@ import {
     type SessionConfig,
     type SessionEvent,
 } from "@github/copilot-sdk";
-import { assertModelAllowed, getProfile, isHigherSensitivity, matchesTool, applyProfile, sensitivityOrder } from "./policy.js";
+import { assertModelAllowed, getProfile, isHigherClassification, matchesTool, applyProfile, profileForClassification } from "./policy.js";
 import type {
     EvidenceLedger,
     EvidenceRecord,
@@ -13,7 +13,7 @@ import type {
     GovernedSessionOptions,
     GovernanceProfile,
     GovernedSdkSession,
-    Sensitivity,
+    DataClassification,
 } from "./types.js";
 
 type PreToolInput = {
@@ -28,7 +28,7 @@ export class GovernedSession {
     private readonly session: GovernedSdkSession;
     private readonly ledger?: EvidenceLedger;
     private readonly policy: GovernedSessionOptions["policy"];
-    private readonly onSensitivityChanged?: GovernedSessionOptions["onSensitivityChanged"];
+    private readonly onClassificationChanged?: GovernedSessionOptions["onClassificationChanged"];
     private active: GovernanceProfile;
     private readonly profiles: GovernanceProfile[];
     private activeRef?: { current: GovernanceProfile };
@@ -42,7 +42,7 @@ export class GovernedSession {
         this.session = session;
         this.ledger = options.ledger;
         this.policy = options.policy;
-        this.onSensitivityChanged = options.onSensitivityChanged;
+        this.onClassificationChanged = options.onClassificationChanged;
         this.active = active;
         this.profiles = Object.values(options.policy.profiles);
         session.on((event) => {
@@ -91,18 +91,22 @@ export class GovernedSession {
         await this.session.abort();
     }
 
-    public async setSensitivity(sensitivity: Sensitivity, reason = "explicit-request"): Promise<void> {
-        if (!isHigherSensitivity(sensitivity, this.active.sensitivity)) {
-            throw new Error(`Sensitivity cannot move from '${this.active.sensitivity}' to '${sensitivity}'.`);
+    public async setClassification(classification: DataClassification, reason = "explicit-request", details?: Record<string, unknown>): Promise<void> {
+        const target = profileForClassification(this.policy, classification);
+        if (!target) throw new Error(`Unknown data classification '${classification}'.`);
+        if (!isHigherClassification(this.policy, classification, this.active)) {
+            throw new Error(`Classification cannot move from '${this.currentClassification()}' to '${classification}'.`);
         }
-        const target = this.profiles.find((profile) => profile.sensitivity === sensitivity);
-        if (!target) throw new Error(`No profile exists for sensitivity '${sensitivity}'.`);
-        await this.upgradeTo(target, reason);
+        await this.upgradeTo(target, reason, details);
     }
 
-    public async disconnect(): Promise<void> {
+    private currentClassification(): DataClassification | undefined {
+        return this.active.classifications[0];
+    }
+
+    public async disconnect(reason = "client-disconnect"): Promise<void> {
         await this.session.disconnect();
-        await this.record("session.closed");
+        await this.record("session.closed", { reason });
     }
 
     private static withBuiltInGovernanceTools(
@@ -111,11 +115,11 @@ export class GovernedSession {
         governedRef: { current?: GovernedSession }
     ): SessionConfig {
         const policyTool = defineTool("read_governance_policy", {
-            description: "Read-only view of the current session state and loaded governance configuration. Use for questions about sensitivity levels, profiles, allowed models, tools, or MCP servers, including requests to lower sensitivity. Configuration changes and sensitivity downgrades are forbidden.",
+            description: "Read-only view of the current session state and loaded governance configuration. Use for questions about data classifications, profiles, allowed models, tools, or MCP servers, including requests to lower classification. Configuration changes and classification downgrades are forbidden.",
             parameters: {
                 type: "object",
                 properties: {
-                    query: { type: "string", description: "Optional question or scope, such as 'internal', 'confidential', 'public profile', or 'all'." },
+                    query: { type: "string", description: "Optional question or scope, such as a classification, profile name, or 'all'." },
                 },
             },
             skipPermission: true,
@@ -124,14 +128,15 @@ export class GovernedSession {
                 return {
                     currentSession: current ? {
                         profile: current.name,
-                        sensitivity: current.sensitivity,
+                        classifications: current.classifications,
                         environment: current.environment,
                     } : undefined,
-                    sensitivityLevels: sensitivityOrder,
+                    classifications: policy.classifications,
                     profiles: Object.fromEntries(Object.entries(policy.profiles)
-                        .filter(([name, profile]) => matchesPolicyQuery(query, name, profile.sensitivity))
+                        .filter(([name, profile]) => matchesPolicyQuery(query, name, profile.classifications))
                         .map(([name, profile]) => [name, {
-                            sensitivity: profile.sensitivity,
+                            classifications: profile.classifications,
+                            upgradeTargets: profile.upgradeTargets,
                             environment: profile.environment,
                             model: profile.model,
                             allowedModels: profile.allowedModels ?? [],
@@ -140,42 +145,66 @@ export class GovernedSession {
                             deniedTools: profile.deniedTools ?? [],
                             mcpServers: Object.keys(profile.mcpServers ?? {}),
                         }])),
-                    toolSensitivity: policy.toolSensitivity ?? {},
+                    toolClassifications: policy.toolClassifications ?? {},
                     readOnly: true,
                     query: query ?? "all",
                 };
             },
         });
-        const sensitivityTool = defineTool("set_sensitivity", {
-            description: "Governed control for a requested session sensitivity. Always use for user requests to upgrade or downgrade sensitivity. Downgrades are rejected.",
+        const modelClassificationEnabled = policy.modelClassification?.enabled === true;
+        const classificationTool = defineTool("set_classification", {
+            description: modelClassificationEnabled
+                ? "Governed control for a requested data classification. Use for explicit user requests and when analyzed content or tool results indicate a higher classification. Downgrades are rejected."
+                : "Governed control for a requested data classification. Use only for explicit user requests to change classification. Downgrades are rejected.",
             parameters: {
                 type: "object",
                 properties: {
-                    sensitivity: { type: "string", enum: sensitivityOrder },
+                    classification: { type: "string", enum: Object.keys(policy.classifications) },
+                    source: {
+                        type: "string",
+                        enum: ["user-request", "model-inference"],
+                        description: "Use 'user-request' when the user explicitly asked. Use 'model-inference' when you determined the classification by analyzing content or tool results.",
+                    },
+                    evidence: { type: "string", description: "For model-inference, the observed content or tool result that indicates this classification." },
                 },
-                required: ["sensitivity"],
+                required: ["classification", "source"],
             },
             skipPermission: true,
-            handler: async ({ sensitivity }: { sensitivity: Sensitivity }) => {
+            handler: async ({ classification, source, evidence }: { classification: DataClassification; source?: string; evidence?: string }) => {
                 const governed = governedRef.current!;
+                const inferred = source === "model-inference";
+                if (inferred && !modelClassificationEnabled) {
+                    await governed.record("classification.inference_rejected", { requested: classification, evidence });
+                    return {
+                        success: false,
+                        profile: governed.profile.name,
+                        classifications: governed.profile.classifications,
+                        error: "model_inferred_classification_is_disabled_by_policy",
+                    };
+                }
                 try {
-                    await governed.setSensitivity(sensitivity, "set-sensitivity-tool-called");
-                    return { success: true, profile: governed.profile.name, sensitivity: governed.profile.sensitivity };
+                    await governed.setClassification(classification, inferred ? "model-inferred-classification" : "user-requested-classification", {
+                        classificationSource: inferred ? "model-inference" : "user-request",
+                        evidence,
+                    });
+                    return { success: true, profile: governed.profile.name, classifications: governed.profile.classifications };
                 } catch (error) {
                     return {
                         success: false,
                         profile: governed.profile.name,
-                        sensitivity: governed.profile.sensitivity,
+                        classifications: governed.profile.classifications,
                         error: error instanceof Error ? error.message : String(error),
                     };
                 }
             },
         });
-        const guidance = "Use read_governance_policy to answer questions about the current session and configured profiles, sensitivity levels, allowed models, tools, and MCP servers. Use set_sensitivity for every user request to upgrade or downgrade sensitivity, and do not claim success until that tool returns success. The tool enforces monotonic sensitivity: upward requests can succeed when policy allows them, while downgrade requests are rejected and the session remains at its current sensitivity. Never change governance configuration from chat.";
+        const baseGuidance = "Use read_governance_policy to answer questions about the current session and configured profiles, data classifications, allowed models, tools, and MCP servers. Use set_classification for every user request to upgrade or downgrade classification with source 'user-request', and do not claim success until that tool returns success. The tool enforces monotonic profile transitions: upgrade requests can succeed when policy allows them, while downgrade requests are rejected and the session remains at its current profile. Never change governance configuration from chat.";
+        const inferenceGuidance = "Data classification analysis is enabled. After each tool result or retrieved content, assess whether it indicates a higher data classification than the current session profile. If it does, call set_classification with the indicated classification, source 'model-inference', and the observed evidence, before continuing your answer. Only raise classification; never request a lower one. An explicit label supplied by a tool or source system is authoritative over your own judgement.";
+        const guidance = modelClassificationEnabled ? `${baseGuidance}\n\n${inferenceGuidance}` : baseGuidance;
         const existingContent = config.systemMessage?.content;
         return {
             ...config,
-            tools: [...(config.tools ?? []), policyTool, sensitivityTool],
+            tools: [...(config.tools ?? []), policyTool, classificationTool],
             systemMessage: {
                 ...config.systemMessage,
                 content: existingContent ? `${existingContent}\n\n${guidance}` : guidance,
@@ -207,7 +236,7 @@ export class GovernedSession {
                             timestamp: new Date().toISOString(),
                             sessionId: invocation.sessionId,
                             profile: activeRef.current.name,
-                            sensitivity: activeRef.current.sensitivity,
+                            classification: activeRef.current.classifications[0],
                             environment: activeRef.current.environment,
                             data: { toolName, reason: "profile-allow-list" },
                         });
@@ -254,35 +283,36 @@ export class GovernedSession {
             const toolName = this.toolNamesByCallId.get(toolCallId)
                 ?? (data.toolDescription as { name?: string } | undefined)?.name
                 ?? "unknown";
-            const sensitivity = extractSensitivity(data)
-                ?? configuredToolSensitivity(this.policy.toolSensitivity, toolName, this.active);
+            const classification = extractClassification(data, this.policy)
+                ?? configuredToolClassification(this.policy.toolClassifications, toolName, this.active);
             this.toolNamesByCallId.delete(toolCallId);
             await this.record("tool.completed", {
                 toolName,
-                resultSensitivity: sensitivity,
+                resultClassification: classification,
             });
-            if (sensitivity && isHigherSensitivity(sensitivity, this.active.sensitivity)) {
-                const target = this.profiles.find((profile) => profile.sensitivity === sensitivity);
+            if (classification && isHigherClassification(this.policy, classification, this.active)) {
+                const target = profileForClassification(this.policy, classification);
                 if (target) await this.upgradeTo(target, "classified-tool-result");
             }
         }
     }
 
-    private async upgradeTo(target: GovernanceProfile, reason: string): Promise<void> {
+    private async upgradeTo(target: GovernanceProfile, reason: string, details?: Record<string, unknown>): Promise<void> {
         const previous = this.active;
         this.active = target;
         if (this.activeRef) this.activeRef.current = target;
         if (target.model && target.model !== previous.model) {
             await this.session.setModel(target.model);
         }
-        await this.record("sensitivity.upgraded", {
+        await this.record("profile.upgraded", {
             previousProfile: previous.name,
             newProfile: target.name,
-            previousSensitivity: previous.sensitivity,
-            newSensitivity: target.sensitivity,
+            previousClassifications: previous.classifications,
+            newClassifications: target.classifications,
             reason,
+            ...details,
         });
-        this.onSensitivityChanged?.({ previous, current: target, reason });
+        this.onClassificationChanged?.({ previous, current: target, reason });
     }
 
     private async record(type: string, data?: Record<string, unknown>): Promise<void> {
@@ -291,7 +321,7 @@ export class GovernedSession {
             timestamp: new Date().toISOString(),
             sessionId: this.session.sessionId,
             profile: this.active.name,
-            sensitivity: this.active.sensitivity,
+            classification: this.currentClassification(),
             environment: this.active.environment,
             data,
         });
@@ -302,7 +332,7 @@ function normalizeToolName(toolName: string, profile?: GovernanceProfile): strin
     if (toolName.startsWith("mcp:") || toolName.startsWith("custom:") || toolName.startsWith("builtin:")) {
         return toolName;
     }
-    if (toolName === "read_governance_policy" || toolName === "set_sensitivity") {
+    if (toolName === "read_governance_policy" || toolName === "set_classification") {
         return `builtin:${toolName}`;
     }
     for (const serverName of Object.keys(profile?.mcpServers ?? {})) {
@@ -323,20 +353,20 @@ function permissionToolName(request: PermissionRequest): string | undefined {
     return undefined;
 }
 
-function matchesPolicyQuery(query: string | undefined, profileName: string, sensitivity: Sensitivity): boolean {
+function matchesPolicyQuery(query: string | undefined, profileName: string, classifications: string[]): boolean {
     if (!query) return true;
     const normalized = query.toLowerCase();
-    return normalized.includes("all") || normalized.includes(profileName.toLowerCase()) || normalized.includes(sensitivity);
+    return normalized.includes("all") || normalized.includes(profileName.toLowerCase()) || classifications.some((classification) => normalized.includes(classification.toLowerCase()));
 }
 
-function extractSensitivity(data: Record<string, unknown>): Sensitivity | undefined {
+function extractClassification(data: Record<string, unknown>, policy: GovernancePolicy): DataClassification | undefined {
     const result = data.result as Record<string, unknown> | undefined;
     const metadata = [result?._meta, result?.mcpMeta, data._meta, data.mcpMeta, data.toolTelemetry];
     for (const candidate of metadata) {
         const meta = candidate as Record<string, unknown> | undefined;
         const governance = meta?.governance as Record<string, unknown> | undefined;
-        const value = governance?.sensitivity ?? meta?.sensitivity ?? meta?.classification ?? meta?.ifc;
-        if (isSensitivity(value)) return value;
+        const value = governance?.classification ?? meta?.classification ?? governance?.sensitivity ?? meta?.sensitivity ?? meta?.ifc;
+        if (typeof value === "string" && policy.classifications[value]) return value;
     }
     const content = [
         result?.content,
@@ -344,36 +374,32 @@ function extractSensitivity(data: Record<string, unknown>): Sensitivity | undefi
         result?.structuredContent,
         result?.contents,
     ].map(stringifyResultContent).filter(Boolean).join("\n");
-    const match = content.match(/(?:classification|sensitivity|sensitivity label|information protection|confidentiality)\s*[:=-]\s*(public|internal|confidential|restricted)/i)
-        ?? content.match(/\b(public|internal|confidential|restricted)\s*:/i);
-    if (match) return match[1].toLowerCase() as Sensitivity;
+    const match = content.match(/(?:classification|data classification|sensitivity|information protection|confidentiality)\s*[:=-]\s*([A-Za-z0-9_.:/ -]+)/i);
+    const value = match?.[1]?.trim();
+    if (value && policy.classifications[value]) return value;
 }
 
-function configuredToolSensitivity(
-    toolSensitivity: Record<string, Sensitivity> | undefined,
+function configuredToolClassification(
+    toolClassifications: Record<string, DataClassification> | undefined,
     toolName: string,
     profile: GovernanceProfile,
-): Sensitivity | undefined {
-    if (!toolSensitivity) return undefined;
+): DataClassification | undefined {
+    if (!toolClassifications) return undefined;
     const normalizedToolName = normalizeToolName(toolName, profile);
-    return findConfiguredSensitivity(toolSensitivity, toolName)
-        ?? findConfiguredSensitivity(toolSensitivity, normalizedToolName);
+    return findConfiguredClassification(toolClassifications, toolName)
+        ?? findConfiguredClassification(toolClassifications, normalizedToolName);
 }
 
-function findConfiguredSensitivity(
-    toolSensitivity: Record<string, Sensitivity>,
+function findConfiguredClassification(
+    toolClassifications: Record<string, DataClassification>,
     toolName: string,
-): Sensitivity | undefined {
-    const exact = toolSensitivity[toolName];
+): DataClassification | undefined {
+    const exact = toolClassifications[toolName];
     if (exact) return exact;
-    const wildcard = Object.entries(toolSensitivity).find(([pattern]) =>
+    const wildcard = Object.entries(toolClassifications).find(([pattern]) =>
         pattern.endsWith("*") && toolName.startsWith(pattern.slice(0, -1))
     );
     return wildcard?.[1];
-}
-
-function isSensitivity(value: unknown): value is Sensitivity {
-    return value === "public" || value === "internal" || value === "confidential" || value === "restricted";
 }
 
 function stringifyResultContent(value: unknown): string {

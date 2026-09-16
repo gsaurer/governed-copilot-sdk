@@ -1,9 +1,9 @@
-import type { GovernedSessionOptions, GovernanceProfile, Sensitivity } from "./types.js";
+import type { GovernedSessionOptions, GovernanceProfile, DataClassification } from "./types.js";
 export declare class GovernedSession {
     private readonly session;
     private readonly ledger?;
     private readonly policy;
-    private readonly onSensitivityChanged?;
+    private readonly onClassificationChanged?;
     private active;
     private readonly profiles;
     private activeRef?;
@@ -14,8 +14,9 @@ export declare class GovernedSession {
     get profile(): GovernanceProfile;
     sendAndWait<T = unknown>(...args: unknown[]): Promise<T>;
     abort(): Promise<void>;
-    setSensitivity(sensitivity: Sensitivity, reason?: string): Promise<void>;
-    disconnect(): Promise<void>;
+    setClassification(classification: DataClassification, reason?: string, details?: Record<string, unknown>): Promise<void>;
+    private currentClassification;
+    disconnect(reason?: string): Promise<void>;
     private static withBuiltInGovernanceTools;
     private static withGovernanceHooks;
     private observe;

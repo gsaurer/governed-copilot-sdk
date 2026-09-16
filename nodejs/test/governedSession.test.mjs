@@ -2,13 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { GovernedSession, matchesTool } from "../dist/index.js";
 
-function makePolicy(toolSensitivity) {
+function makePolicy(toolClassifications) {
   return {
     profiles: {
-      public: { name: "public", sensitivity: "public" },
-      internal: { name: "internal", sensitivity: "internal" },
+      public: { name: "public", classifications: ["public"], upgradeTargets: ["internal"] },
+      internal: { name: "internal", classifications: ["internal"], upgradeTargets: [] },
     },
-    toolSensitivity,
+    classifications: { public: "public", internal: "internal" },
+    toolClassifications,
   };
 }
 
@@ -33,7 +34,7 @@ async function completeTool(session, toolName, result = {}) {
   await new Promise((resolve) => setImmediate(resolve));
 }
 
-test("wildcard toolSensitivity pattern upgrades sensitivity", async () => {
+test("wildcard toolClassifications pattern upgrades classification", async () => {
   const fakeSession = makeFakeSdkSession();
   const client = { createSession: async () => fakeSession };
   let changed;
@@ -41,7 +42,7 @@ test("wildcard toolSensitivity pattern upgrades sensitivity", async () => {
     client,
     policy: makePolicy({ "mcp:fabric-local-*": "internal" }),
     profile: "public",
-    onSensitivityChanged: (change) => { changed = change; },
+    onClassificationChanged: (change) => { changed = change; },
   });
 
   await completeTool(fakeSession, "mcp:fabric-local-list_items");
@@ -50,7 +51,7 @@ test("wildcard toolSensitivity pattern upgrades sensitivity", async () => {
   assert.equal(changed?.current.name, "internal");
 });
 
-test("non-matching tool name does not upgrade sensitivity", async () => {
+test("non-matching tool name does not upgrade classification", async () => {
   const fakeSession = makeFakeSdkSession();
   const client = { createSession: async () => fakeSession };
   const governed = await GovernedSession.create({
@@ -64,7 +65,7 @@ test("non-matching tool name does not upgrade sensitivity", async () => {
   assert.equal(governed.profile.name, "public");
 });
 
-test("exact toolSensitivity match still upgrades sensitivity", async () => {
+test("exact toolClassifications match still upgrades classification", async () => {
   const fakeSession = makeFakeSdkSession();
   const client = { createSession: async () => fakeSession };
   const governed = await GovernedSession.create({
@@ -83,7 +84,7 @@ test("tool policy supports trailing wildcards", () => {
   assert.equal(matchesTool("mcp:workiq-search_context", ["mcp:internal-data-* ".trim()]), false);
 });
 
-test("create() auto-injects read_governance_policy and set_sensitivity builtin tools", async () => {
+test("create() auto-injects read_governance_policy and set_classification builtin tools", async () => {
   let capturedConfig;
   const fakeSession = makeFakeSdkSession();
   const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
@@ -95,5 +96,41 @@ test("create() auto-injects read_governance_policy and set_sensitivity builtin t
 
   const toolNames = capturedConfig.tools.map((tool) => tool.name);
   assert.ok(toolNames.includes("read_governance_policy"));
-  assert.ok(toolNames.includes("set_sensitivity"));
+  assert.ok(toolNames.includes("set_classification"));
+});
+
+test("set_classification rejects model-inference source when modelClassification is disabled", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  const governed = await GovernedSession.create({
+    client,
+    policy: makePolicy(undefined),
+    profile: "public",
+  });
+
+  const classificationTool = capturedConfig.tools.find((tool) => tool.name === "set_classification");
+  const result = await classificationTool.handler({ classification: "internal", source: "model-inference", evidence: "test" });
+
+  assert.equal(result.success, false);
+  assert.equal(result.error, "model_inferred_classification_is_disabled_by_policy");
+  assert.equal(governed.profile.name, "public");
+});
+
+test("set_classification accepts model-inference source when modelClassification is enabled", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  const policy = { ...makePolicy(undefined), modelClassification: { enabled: true } };
+  const governed = await GovernedSession.create({
+    client,
+    policy,
+    profile: "public",
+  });
+
+  const classificationTool = capturedConfig.tools.find((tool) => tool.name === "set_classification");
+  const result = await classificationTool.handler({ classification: "internal", source: "model-inference", evidence: "test" });
+
+  assert.equal(result.success, true);
+  assert.equal(governed.profile.name, "internal");
 });
