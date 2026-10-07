@@ -134,3 +134,91 @@ test("set_classification accepts model-inference source when modelClassification
   assert.equal(result.success, true);
   assert.equal(governed.profile.name, "internal");
 });
+
+// Public can reach internal but not confidential, matching the sample demo config.
+function makeThreeLevelPolicy(toolClassifications) {
+  return {
+    profiles: {
+      public: { name: "public", classifications: ["public"], upgradeTargets: ["internal"] },
+      internal: { name: "internal", classifications: ["internal"], upgradeTargets: ["confidential"] },
+      confidential: { name: "confidential", classifications: ["confidential"], upgradeTargets: [] },
+    },
+    classifications: { public: "public", internal: "internal", confidential: "confidential" },
+    toolClassifications,
+  };
+}
+
+test("pre-flight: tool with a configured classification unreachable from the active profile is denied", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  await GovernedSession.create({
+    client,
+    policy: makeThreeLevelPolicy({ "mcp:internal-data-get_confidential_demo_data": "confidential" }),
+    profile: "public",
+  });
+
+  const result = await capturedConfig.hooks.onPreToolUse(
+    { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: "mcp:internal-data-get_confidential_demo_data", toolArgs: {} },
+    { sessionId: "test-session" }
+  );
+
+  assert.equal(result.permissionDecision, "deny");
+  assert.match(result.permissionDecisionReason, /not reachable/);
+});
+
+test("pre-flight: an explicit classification argument unreachable from the active profile is denied before execution", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  await GovernedSession.create({
+    client,
+    policy: makeThreeLevelPolicy(undefined),
+    profile: "public",
+  });
+
+  const result = await capturedConfig.hooks.onPreToolUse(
+    { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: "mcp:internal-data-get_sales_data", toolArgs: { classification: "confidential" } },
+    { sessionId: "test-session" }
+  );
+
+  assert.equal(result.permissionDecision, "deny");
+  assert.match(result.permissionDecisionReason, /not reachable/);
+});
+
+test("pre-flight: a classification reachable via upgradeTargets is not denied", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  await GovernedSession.create({
+    client,
+    policy: makeThreeLevelPolicy(undefined),
+    profile: "public",
+  });
+
+  const result = await capturedConfig.hooks.onPreToolUse(
+    { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: "mcp:internal-data-get_sales_data", toolArgs: { classification: "internal" } },
+    { sessionId: "test-session" }
+  );
+
+  assert.equal(result, undefined);
+});
+
+test("content-derived classification with trailing prose still upgrades (regression)", async () => {
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async () => fakeSession };
+  const governed = await GovernedSession.create({
+    client,
+    policy: makeThreeLevelPolicy(undefined),
+    profile: "public",
+  });
+
+  await completeTool(fakeSession, "mcp:internal-data-get_sales_data", {
+    content: [{
+      type: "text",
+      text: "Classification: internal. Internal sales information is non-public operational data for workforce and approved partners; do not publish it externally.",
+    }],
+  });
+
+  assert.equal(governed.profile.name, "internal");
+});

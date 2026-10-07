@@ -23,6 +23,15 @@ export function isHigherClassification(policy, candidate, currentProfile) {
     const targetProfile = policy.classifications[candidate];
     return Boolean(targetProfile && currentProfile.upgradeTargets.includes(targetProfile));
 }
+/** True when the profile already covers this classification, or can reach it via an upgrade; false when the tool should be denied pre-execution. */
+export function isClassificationSatisfied(policy, classification, currentProfile) {
+    const targetProfile = policy.classifications[classification];
+    if (!targetProfile)
+        return true;
+    if (targetProfile === currentProfile.name)
+        return true;
+    return currentProfile.upgradeTargets.includes(targetProfile);
+}
 export function profileForClassification(policy, classification) {
     const profileName = policy.classifications[classification];
     return profileName ? policy.profiles[profileName] : undefined;

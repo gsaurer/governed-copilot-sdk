@@ -27,6 +27,14 @@ export function isHigherClassification(policy: GovernancePolicy, candidate: stri
     return Boolean(targetProfile && currentProfile.upgradeTargets.includes(targetProfile));
 }
 
+/** True when the profile already covers this classification, or can reach it via an upgrade; false when the tool should be denied pre-execution. */
+export function isClassificationSatisfied(policy: GovernancePolicy, classification: string, currentProfile: GovernanceProfile): boolean {
+    const targetProfile = policy.classifications[classification];
+    if (!targetProfile) return true;
+    if (targetProfile === currentProfile.name) return true;
+    return currentProfile.upgradeTargets.includes(targetProfile);
+}
+
 export function profileForClassification(policy: GovernancePolicy, classification: string): GovernanceProfile | undefined {
     const profileName = policy.classifications[classification];
     return profileName ? policy.profiles[profileName] : undefined;

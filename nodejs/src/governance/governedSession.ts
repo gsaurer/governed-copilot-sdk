@@ -5,7 +5,7 @@ import {
     type SessionConfig,
     type SessionEvent,
 } from "@github/copilot-sdk";
-import { assertModelAllowed, getProfile, isHigherClassification, matchesTool, applyProfile, profileForClassification } from "./policy.js";
+import { assertModelAllowed, getProfile, isClassificationSatisfied, isHigherClassification, matchesTool, applyProfile, profileForClassification } from "./policy.js";
 import type {
     EvidenceLedger,
     EvidenceRecord,
@@ -66,7 +66,7 @@ export class GovernedSession {
         const activeRef = { current: active };
         const governedRef: { current?: GovernedSession } = {};
         const configWithBuiltInTools = GovernedSession.withBuiltInGovernanceTools(config, options.policy, governedRef);
-        const governedConfig = GovernedSession.withGovernanceHooks(configWithBuiltInTools, activeRef, options.ledger);
+        const governedConfig = GovernedSession.withGovernanceHooks(configWithBuiltInTools, options.policy, activeRef, options.ledger);
         const session = await options.client.createSession(governedConfig);
         const governed = new GovernedSession(session, options, active);
         governed.activeRef = activeRef;
@@ -214,6 +214,7 @@ export class GovernedSession {
 
     private static withGovernanceHooks(
         config: SessionConfig,
+        policy: GovernancePolicy,
         activeRef: { current: GovernanceProfile },
         ledger: EvidenceLedger | undefined
     ): SessionConfig {
@@ -243,6 +244,23 @@ export class GovernedSession {
                         return {
                             permissionDecision: "deny" as const,
                             permissionDecisionReason: "Tool is not allowed by the active governance profile.",
+                        };
+                    }
+                    const anticipated = configuredToolClassification(policy.toolClassifications, toolName, activeRef.current)
+                        ?? extractRequestedClassification(input.toolArgs, policy);
+                    if (anticipated && !isClassificationSatisfied(policy, anticipated, activeRef.current)) {
+                        await append(ledger, {
+                            type: "tool.denied",
+                            timestamp: new Date().toISOString(),
+                            sessionId: invocation.sessionId,
+                            profile: activeRef.current.name,
+                            classification: activeRef.current.classifications[0],
+                            environment: activeRef.current.environment,
+                            data: { toolName, reason: "classification-not-reachable", anticipatedClassification: anticipated },
+                        });
+                        return {
+                            permissionDecision: "deny" as const,
+                            permissionDecisionReason: `Tool result classification '${anticipated}' is not reachable from the active governance profile.`,
                         };
                     }
                     return existingHooks?.onPreToolUse?.(input, invocation);
@@ -374,9 +392,17 @@ function extractClassification(data: Record<string, unknown>, policy: Governance
         result?.structuredContent,
         result?.contents,
     ].map(stringifyResultContent).filter(Boolean).join("\n");
-    const match = content.match(/(?:classification|data classification|sensitivity|information protection|confidentiality)\s*[:=-]\s*([A-Za-z0-9_.:/ -]+)/i);
+    const match = content.match(/(?:classification|data classification|sensitivity|information protection|confidentiality)\s*[:=-]\s*([A-Za-z0-9_-]+)/i);
     const value = match?.[1]?.trim();
     if (value && policy.classifications[value]) return value;
+}
+
+/** Reads an explicit classification/sensitivity argument off a tool call before it executes, so known-sensitive calls can be denied pre-flight instead of only evaluated after the result returns. */
+function extractRequestedClassification(toolArgs: unknown, policy: GovernancePolicy): DataClassification | undefined {
+    if (!toolArgs || typeof toolArgs !== "object") return undefined;
+    const args = toolArgs as Record<string, unknown>;
+    const value = args.classification ?? args.sensitivity;
+    if (typeof value === "string" && policy.classifications[value]) return value;
 }
 
 function configuredToolClassification(

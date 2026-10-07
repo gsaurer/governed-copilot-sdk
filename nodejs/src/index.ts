@@ -3,6 +3,7 @@ export {
     applyProfile,
     defaultProfileName,
     getProfile,
+    isClassificationSatisfied,
     isHigherClassification,
     matchesTool,
     profileForClassification,
