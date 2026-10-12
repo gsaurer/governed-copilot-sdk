@@ -22,6 +22,10 @@ export interface GovernancePolicy {
     modelClassification?: {
         enabled: boolean;
     };
+    toolSearch?: {
+        enabled?: boolean;
+        deferThreshold?: number;
+    };
 }
 export interface EvidenceRecord {
     type: string;

@@ -12,6 +12,18 @@ A message enters the governed session, the SDK binds it to a policy profile and 
 
 ![The governed session loop: establish session, select model route, model reasoning, tool proposal, policy enforcement, bounded tool call, label and evaluate result, response.](docs/governed-session-loop.svg)
 
+## Tool search
+
+The underlying Copilot SDK can defer MCP/external tool definitions behind a built-in `tool_search_tool` once the tool count passes a threshold, instead of loading every tool schema into every turn. `GovernedSession` always registers a governance-aware override of that tool: search results are filtered through the active profile's tool allow/deny list and `toolClassifications`, so the model never discovers a tool it isn't permitted to call. Configure it in `governance.config.json`:
+
+```json
+"toolSearch": { "enabled": true, "deferThreshold": 30 }
+```
+
+[test/toolSearchTokenSavings.test.mjs](nodejs/test/toolSearchTokenSavings.test.mjs) estimates the upfront prompt-size impact (chars/4 ≈ tokens heuristic) as the tool count grows: negligible below the defer threshold, ~75% smaller at 60 tools, ~95% smaller at 300 tools, since only the deferred-but-matched tools' schemas are sent instead of the full catalog.
+
+See [docs/tool-search.md](docs/tool-search.md) for the full design, and [`nodejs/samples/mcps/catalog-demo-mcp-server.mjs`](nodejs/samples/mcps/catalog-demo-mcp-server.mjs) for a 35-tool synthetic catalog wired into the sample config to see deferral and governance-filtered search engage live.
+
 ## Prerequisites
 
 - Node.js 22 or later.

@@ -158,10 +158,33 @@ export class GovernedSession {
         const baseGuidance = "Use read_governance_policy to answer questions about the current session and configured profiles, data classifications, allowed models, tools, and MCP servers. Use set_classification for every user request to upgrade or downgrade classification with source 'user-request', and do not claim success until that tool returns success. The tool enforces monotonic profile transitions: upgrade requests can succeed when policy allows them, while downgrade requests are rejected and the session remains at its current profile. Never change governance configuration from chat.";
         const inferenceGuidance = "Data classification analysis is enabled. After each tool result or retrieved content, assess whether it indicates a higher data classification than the current session profile. If it does, call set_classification with the indicated classification, source 'model-inference', and the observed evidence, before continuing your answer. Only raise classification; never request a lower one. An explicit label supplied by a tool or source system is authoritative over your own judgement.";
         const guidance = modelClassificationEnabled ? `${baseGuidance}\n\n${inferenceGuidance}` : baseGuidance;
+        const toolSearchTool = defineTool("tool_search_tool", {
+            description: "Search available tools by keyword. Only returns tools permitted by the active governance profile, so results reflect what can actually be called right now.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: { type: "string", description: "Keywords describing the capability you need." },
+                    limit: { type: "number", description: "Maximum number of results to return. Defaults to 10." },
+                },
+                required: ["query"],
+            },
+            overridesBuiltInTool: true,
+            skipPermission: true,
+            handler: (args, invocation) => {
+                const profile = governedRef.current?.profile;
+                const candidates = (invocation.availableTools ?? []).filter((tool) => isToolSearchResultAllowed(tool, policy, profile));
+                const tools = rankToolsByQuery(candidates, args.query).slice(0, args.limit ?? 10).map((tool) => ({
+                    name: tool.name,
+                    description: tool.description,
+                    input_schema: tool.input_schema,
+                }));
+                return { tools };
+            },
+        });
         const existingContent = config.systemMessage?.content;
         return {
             ...config,
-            tools: [...(config.tools ?? []), policyTool, classificationTool],
+            tools: [...(config.tools ?? []), policyTool, classificationTool, toolSearchTool],
             systemMessage: {
                 ...config.systemMessage,
                 content: existingContent ? `${existingContent}\n\n${guidance}` : guidance,
@@ -371,6 +394,35 @@ function findConfiguredClassification(toolClassifications, toolName) {
         return exact;
     const wildcard = Object.entries(toolClassifications).find(([pattern]) => pattern.endsWith("*") && toolName.startsWith(pattern.slice(0, -1)));
     return wildcard?.[1];
+}
+/** True when the active profile is allowed to see this tool in search results: it passes the tool allow/deny list and, if its classification is statically known, that classification is reachable. */
+function isToolSearchResultAllowed(tool, policy, profile) {
+    if (!profile)
+        return true;
+    const normalized = tool.mcpServerName
+        ? `mcp:${tool.mcpServerName}-${tool.mcpToolName ?? tool.name}`
+        : normalizeToolName(tool.name, profile);
+    if (profile.tools && !matchesTool(normalized, profile.tools))
+        return false;
+    if (matchesTool(normalized, profile.deniedTools ?? []))
+        return false;
+    const classification = configuredToolClassification(policy.toolClassifications, normalized, profile);
+    return !classification || isClassificationSatisfied(policy, classification, profile);
+}
+/** Simple keyword-overlap ranking so tool search stays dependency-free; ties keep the runtime's original ordering. */
+function rankToolsByQuery(tools, query) {
+    const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!terms.length)
+        return tools;
+    return tools
+        .map((tool, index) => {
+        const haystack = `${tool.name} ${tool.description}`.toLowerCase();
+        const score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
+        return { tool, score, index };
+    })
+        .filter((entry) => entry.score > 0)
+        .sort((a, b) => b.score - a.score || a.index - b.index)
+        .map((entry) => entry.tool);
 }
 function stringifyResultContent(value) {
     if (typeof value === "string")

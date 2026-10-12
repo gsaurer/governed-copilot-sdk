@@ -15,6 +15,7 @@ export function loadGovernanceConfigObject(document, sourcePath) {
         classifications: raw.classifications,
         toolClassifications: raw.toolClassifications,
         modelClassification: raw.modelClassification,
+        toolSearch: raw.toolSearch,
     };
     return {
         config: raw,
@@ -165,6 +166,7 @@ export function createSessionConfig(config, profileName, baseDir) {
         providers,
         models,
         mcpServers: resolveProfileMcpServers(config, profile, baseDir),
+        toolSearch: config.toolSearch,
     };
 }
 function isConfiguredModelAllowed(reference, allowed, denied) {

@@ -42,6 +42,7 @@ export type GovernanceConfigFile = {
     classifications: Record<string, string>;
     toolClassifications?: Record<string, DataClassification>;
     modelClassification?: { enabled: boolean };
+    toolSearch?: { enabled?: boolean; deferThreshold?: number };
     mcpServers?: Record<string, ConfiguredMcpServer>;
     models?: { providers: Record<string, ProviderCatalog> };
     executionEnvironments: Record<string, ExecutionEnvironmentConfig>;
@@ -74,6 +75,7 @@ export function loadGovernanceConfigObject(document: unknown, sourcePath: string
         classifications: raw.classifications,
         toolClassifications: raw.toolClassifications,
         modelClassification: raw.modelClassification,
+        toolSearch: raw.toolSearch,
     };
     return {
         config: raw,
@@ -223,6 +225,7 @@ export function createSessionConfig(config: GovernanceConfigFile, profileName: s
         providers,
         models,
         mcpServers: resolveProfileMcpServers(config, profile, baseDir),
+        toolSearch: config.toolSearch,
     } as SessionConfig;
 }
 

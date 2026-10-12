@@ -56,6 +56,10 @@ export type GovernanceConfigFile = {
     modelClassification?: {
         enabled: boolean;
     };
+    toolSearch?: {
+        enabled?: boolean;
+        deferThreshold?: number;
+    };
     mcpServers?: Record<string, ConfiguredMcpServer>;
     models?: {
         providers: Record<string, ProviderCatalog>;

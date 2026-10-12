@@ -222,3 +222,75 @@ test("content-derived classification with trailing prose still upgrades (regress
 
   assert.equal(governed.profile.name, "internal");
 });
+
+test("create() auto-injects a governance-aware tool_search_tool override", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  await GovernedSession.create({
+    client,
+    policy: makeThreeLevelPolicy(undefined),
+    profile: "public",
+  });
+
+  const toolSearchTool = capturedConfig.tools.find((tool) => tool.name === "tool_search_tool");
+  assert.ok(toolSearchTool);
+  assert.equal(toolSearchTool.overridesBuiltInTool, true);
+});
+
+test("tool_search_tool excludes tools outside the active profile's allow-list", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  const policy = makeThreeLevelPolicy(undefined);
+  policy.profiles.public.tools = ["mcp:internal-data-get_sales_data"];
+  await GovernedSession.create({ client, policy, profile: "public" });
+
+  const toolSearchTool = capturedConfig.tools.find((tool) => tool.name === "tool_search_tool");
+  const availableTools = [
+    { name: "internal-data-get_sales_data", mcpServerName: "internal-data", mcpToolName: "get_sales_data", description: "Fetch sales data." },
+    { name: "internal-data-get_renewal_data", mcpServerName: "internal-data", mcpToolName: "get_renewal_data", description: "Fetch renewal sales data." },
+  ];
+
+  const result = await toolSearchTool.handler({ query: "sales" }, { availableTools });
+
+  assert.deepEqual(result.tools.map((tool) => tool.name), ["internal-data-get_sales_data"]);
+});
+
+test("tool_search_tool excludes tools whose configured classification is unreachable", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  const policy = makeThreeLevelPolicy({ "mcp:internal-data-get_confidential_demo_data": "confidential" });
+  await GovernedSession.create({ client, policy, profile: "public" });
+
+  const toolSearchTool = capturedConfig.tools.find((tool) => tool.name === "tool_search_tool");
+  const availableTools = [
+    { name: "internal-data-get_internal_demo_data", mcpServerName: "internal-data", mcpToolName: "get_internal_demo_data", description: "Internal demo data." },
+    { name: "internal-data-get_confidential_demo_data", mcpServerName: "internal-data", mcpToolName: "get_confidential_demo_data", description: "Confidential demo data." },
+  ];
+
+  const result = await toolSearchTool.handler({ query: "demo data" }, { availableTools });
+
+  assert.deepEqual(result.tools.map((tool) => tool.name), ["internal-data-get_internal_demo_data"]);
+});
+
+test("tool_search_tool ranks by keyword overlap and respects limit", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  await GovernedSession.create({ client, policy: makeThreeLevelPolicy(undefined), profile: "public" });
+
+  const toolSearchTool = capturedConfig.tools.find((tool) => tool.name === "tool_search_tool");
+  const availableTools = [
+    { name: "get_weather", description: "Look up current weather for a city." },
+    { name: "get_sales_data", description: "Fetch internal and confidential sales figures." },
+    { name: "get_sales_forecast", description: "Project future sales figures." },
+  ];
+
+  const result = await toolSearchTool.handler({ query: "sales figures", limit: 1 }, { availableTools });
+
+  assert.equal(result.tools.length, 1);
+  assert.equal(result.tools[0].name, "get_sales_data");
+});
+

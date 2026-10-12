@@ -14,6 +14,10 @@
   "modelClassification": {
     "enabled": true
   },
+  "toolSearch": {
+    "enabled": true,
+    "deferThreshold": 30
+  },
   "toolClassifications": {
     "mcp:internal-data-get_internal_demo_data": "internal",
     "mcp:internal-data-get_confidential_demo_data": "confidential"
@@ -28,7 +32,17 @@
       "tools": [
         "*"
       ]
-    }    
+    },
+    "catalog-demo": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "mcps/catalog-demo-mcp-server.mjs"
+      ],
+      "tools": [
+        "*"
+      ]
+    }
   },
   "models": {
     "providers": {

@@ -29,6 +29,7 @@ export interface GovernancePolicy {
     classifications: Record<string, string>;
     toolClassifications?: Record<string, DataClassification>;
     modelClassification?: { enabled: boolean };
+    toolSearch?: { enabled?: boolean; deferThreshold?: number };
 }
 
 export interface EvidenceRecord {

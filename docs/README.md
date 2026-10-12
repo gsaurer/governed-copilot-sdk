@@ -22,5 +22,6 @@ The first implementation targets Node.js and depends on `@github/copilot-sdk`.
 
 * [Governed sessions](./governed-sessions.md): sensitivity profiles, tool classification, and monotonic upgrades.
 * [Evidence ledger](./evidence-ledger.md): append-only execution evidence and verification.
+* [Tool search](./tool-search.md): policy-filtered tool discovery for large tool catalogs, and its estimated token impact.
 
 The runnable sample is in [`nodejs/samples/governed-chat`](../nodejs/samples/governed-chat/README.md).
