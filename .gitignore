@@ -24,6 +24,7 @@ java/scripts/codegen/node_modules/
 
 # node.js 
 **/node_modules/
+nodejs/dist/
 
 **/.env
 **/.copilot-state
