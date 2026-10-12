@@ -376,7 +376,7 @@ function normalizeToolName(toolName: string, profile?: GovernanceProfile): strin
     if (toolName.startsWith("mcp:") || toolName.startsWith("custom:") || toolName.startsWith("builtin:")) {
         return toolName;
     }
-    if (toolName === "read_governance_policy" || toolName === "set_classification") {
+    if (toolName === "read_governance_policy" || toolName === "set_classification" || toolName === "tool_search_tool") {
         return `builtin:${toolName}`;
     }
     for (const serverName of Object.keys(profile?.mcpServers ?? {})) {
@@ -461,13 +461,25 @@ function isToolSearchResultAllowed(
     profile: GovernanceProfile | undefined,
 ): boolean {
     if (!profile) return true;
-    const normalized = tool.mcpServerName
-        ? `mcp:${tool.mcpServerName}-${tool.mcpToolName ?? tool.name}`
-        : normalizeToolName(tool.name, profile);
+    const normalized = normalizeCatalogToolName(tool, profile);
     if (profile.tools && !matchesTool(normalized, profile.tools)) return false;
     if (matchesTool(normalized, profile.deniedTools ?? [])) return false;
     const classification = configuredToolClassification(policy.toolClassifications, normalized, profile);
     return !classification || isClassificationSatisfied(policy, classification, profile);
+}
+
+/**
+ * Normalizes a tool-search catalog entry the same way onPreToolUse normalizes a live call, so search
+ * visibility and execution authorization never disagree. Built-in tools (e.g. web_search) can carry an
+ * mcpServerName in CurrentToolMetadata too, so those special cases must be checked before falling back
+ * to the generic mcp:<server>-<tool> form.
+ */
+function normalizeCatalogToolName(tool: CurrentToolMetadata, profile: GovernanceProfile): string {
+    if (tool.name === "web_search" || tool.name === "read_governance_policy" || tool.name === "set_classification" || tool.name === "tool_search_tool") {
+        return `builtin:${tool.name}`;
+    }
+    if (tool.mcpServerName) return `mcp:${tool.mcpServerName}-${tool.mcpToolName ?? tool.name}`;
+    return normalizeToolName(tool.name, profile);
 }
 
 /** Simple keyword-overlap ranking so tool search stays dependency-free; ties keep the runtime's original ordering. */

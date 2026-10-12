@@ -294,3 +294,190 @@ test("tool_search_tool ranks by keyword overlap and respects limit", async () =>
   assert.equal(result.tools[0].name, "get_sales_data");
 });
 
+// Confirmed against a real session: CurrentToolMetadata for web_search carries mcpServerName
+// "github-mcp-server" even though onPreToolUse normalizes a live web_search call to
+// "builtin:web_search" (bare toolName, no server info). Search filtering must agree.
+test("tool_search_tool normalizes web_search as builtin:web_search despite its mcpServerName metadata", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  const policy = makeThreeLevelPolicy(undefined);
+  policy.profiles.public.tools = ["builtin:web_search"];
+  await GovernedSession.create({ client, policy, profile: "public" });
+
+  const toolSearchTool = capturedConfig.tools.find((tool) => tool.name === "tool_search_tool");
+  const availableTools = [
+    { name: "web_search", namespacedName: "github-mcp-server/web_search", mcpServerName: "github-mcp-server", mcpToolName: "web_search", description: "Search the web for current information." },
+    { name: "internal-data-get_sales_data", mcpServerName: "internal-data", mcpToolName: "get_sales_data", description: "Fetch sales data." },
+  ];
+
+  const found = await toolSearchTool.handler({ query: "search" }, { availableTools });
+  assert.deepEqual(found.tools.map((tool) => tool.name), ["web_search"]);
+
+  const webSearchDecision = await capturedConfig.hooks.onPreToolUse(
+    { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: "web_search", toolArgs: {} },
+    { sessionId: "test-session" }
+  );
+  assert.equal(webSearchDecision, undefined);
+
+  const salesDataDecision = await capturedConfig.hooks.onPreToolUse(
+    { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: "mcp:internal-data-get_sales_data", toolArgs: {} },
+    { sessionId: "test-session" }
+  );
+  assert.equal(salesDataDecision.permissionDecision, "deny");
+});
+
+test("tools surfaced by tool_search_tool are also permitted by the pre-execution gate (search and calling agree)", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  const policy = makeThreeLevelPolicy({ "mcp:internal-data-get_confidential_demo_data": "confidential" });
+  policy.profiles.public.tools = ["mcp:internal-data-*"];
+  await GovernedSession.create({ client, policy, profile: "public" });
+
+  const toolSearchTool = capturedConfig.tools.find((tool) => tool.name === "tool_search_tool");
+  const availableTools = [
+    { name: "internal-data-get_internal_demo_data", mcpServerName: "internal-data", mcpToolName: "get_internal_demo_data", description: "Internal demo data." },
+    { name: "internal-data-get_confidential_demo_data", mcpServerName: "internal-data", mcpToolName: "get_confidential_demo_data", description: "Confidential demo data." },
+    { name: "unrelated-server-tool", mcpServerName: "unrelated-server", mcpToolName: "tool", description: "Not part of this profile." },
+  ];
+
+  const found = await toolSearchTool.handler({ query: "demo data" }, { availableTools });
+  assert.deepEqual(found.tools.map((tool) => tool.name), ["internal-data-get_internal_demo_data"]);
+
+  // Every tool search said yes to must also be callable: onPreToolUse should not deny it.
+  for (const tool of found.tools) {
+    const decision = await capturedConfig.hooks.onPreToolUse(
+      { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: `mcp:internal-data-${tool.name.replace("internal-data-", "")}`, toolArgs: {} },
+      { sessionId: "test-session" }
+    );
+    assert.equal(decision, undefined, `expected '${tool.name}' to be callable since tool search surfaced it`);
+  }
+});
+
+test("tools excluded by tool_search_tool are also denied if called directly (no end-run around search filtering)", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  const policy = makeThreeLevelPolicy({ "mcp:internal-data-get_confidential_demo_data": "confidential" });
+  policy.profiles.public.tools = ["mcp:internal-data-*"];
+  await GovernedSession.create({ client, policy, profile: "public" });
+
+  const toolSearchTool = capturedConfig.tools.find((tool) => tool.name === "tool_search_tool");
+  const availableTools = [
+    { name: "internal-data-get_confidential_demo_data", mcpServerName: "internal-data", mcpToolName: "get_confidential_demo_data", description: "Confidential demo data." },
+    { name: "unrelated-server-tool", mcpServerName: "unrelated-server", mcpToolName: "tool", description: "Not part of this profile." },
+  ];
+
+  const found = await toolSearchTool.handler({ query: "demo data unrelated" }, { availableTools });
+  assert.deepEqual(found.tools, [], "both tools should be hidden from search (classification-unreachable and not in the allow-list)");
+
+  const deniedByClassification = await capturedConfig.hooks.onPreToolUse(
+    { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: "mcp:internal-data-get_confidential_demo_data", toolArgs: {} },
+    { sessionId: "test-session" }
+  );
+  assert.equal(deniedByClassification.permissionDecision, "deny");
+
+  const deniedByAllowList = await capturedConfig.hooks.onPreToolUse(
+    { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: "mcp:unrelated-server-tool", toolArgs: {} },
+    { sessionId: "test-session" }
+  );
+  assert.equal(deniedByAllowList.permissionDecision, "deny");
+});
+
+test("a tool discovered via tool_search_tool can be called end-to-end and still upgrades classification", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  const policy = makeThreeLevelPolicy({ "mcp:internal-data-get_sales_data": "internal" });
+  const governed = await GovernedSession.create({ client, policy, profile: "public" });
+
+  const toolSearchTool = capturedConfig.tools.find((tool) => tool.name === "tool_search_tool");
+  const found = await toolSearchTool.handler(
+    { query: "sales" },
+    { availableTools: [{ name: "internal-data-get_sales_data", mcpServerName: "internal-data", mcpToolName: "get_sales_data", description: "Fetch sales data." }] }
+  );
+  assert.deepEqual(found.tools.map((tool) => tool.name), ["internal-data-get_sales_data"]);
+
+  const decision = await capturedConfig.hooks.onPreToolUse(
+    { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: "mcp:internal-data-get_sales_data", toolArgs: {} },
+    { sessionId: "test-session" }
+  );
+  assert.equal(decision, undefined);
+
+  await completeTool(fakeSession, "mcp:internal-data-get_sales_data", { content: [{ type: "text", text: "ok" }] });
+
+  assert.equal(governed.profile.name, "internal");
+});
+
+test("tool search call report: discovery, gate decision, and invocation outcome per tool", async () => {
+  let capturedConfig;
+  const fakeSession = makeFakeSdkSession();
+  const client = { createSession: async (config) => { capturedConfig = config; return fakeSession; } };
+  const policy = makeThreeLevelPolicy({
+    "mcp:internal-data-get_internal_demo_data": "internal",
+    "mcp:internal-data-get_confidential_demo_data": "confidential",
+  });
+  const governed = await GovernedSession.create({ client, policy, profile: "public" });
+  const toolSearchTool = capturedConfig.tools.find((tool) => tool.name === "tool_search_tool");
+
+  // A representative deferred catalog: one unclassified tool, one unreachable classification
+  // (checked while the profile is still public), one reachable classification, and a built-in
+  // that carries mcpServerName metadata too. Order matters: the unreachable one must be checked
+  // before any upgrade happens, since reachability depends on the *active* profile at call time.
+  const catalog = [
+    { name: "internal-data-search_internal_docs", mcpServerName: "internal-data", mcpToolName: "search_internal_docs", description: "Search synthetic internal documentation.", query: "internal documents" },
+    { name: "internal-data-get_confidential_demo_data", mcpServerName: "internal-data", mcpToolName: "get_confidential_demo_data", description: "Confidential demo data.", query: "confidential demo data" },
+    { name: "internal-data-get_internal_demo_data", mcpServerName: "internal-data", mcpToolName: "get_internal_demo_data", description: "Internal demo data.", query: "internal demo data" },
+    { name: "web_search", mcpServerName: "github-mcp-server", mcpToolName: "web_search", description: "Search the web for current information.", query: "web search" },
+  ];
+
+  const callData = [];
+  for (const entry of catalog) {
+    const profileBeforeCall = governed.profile.name;
+
+    const searchResult = await toolSearchTool.handler({ query: entry.query }, { availableTools: catalog });
+    const foundBySearch = searchResult.tools.some((tool) => tool.name === entry.name);
+
+    const normalizedToolName = entry.mcpServerName === "github-mcp-server" ? entry.name : `mcp:${entry.mcpServerName}-${entry.mcpToolName}`;
+    const decision = await capturedConfig.hooks.onPreToolUse(
+      { sessionId: "test-session", timestamp: new Date(), workingDirectory: ".", toolName: normalizedToolName, toolArgs: {} },
+      { sessionId: "test-session" }
+    );
+    const permitted = decision === undefined;
+
+    let invoked = false;
+    if (permitted) {
+      await completeTool(fakeSession, normalizedToolName, { content: [{ type: "text", text: "ok" }] });
+      invoked = true;
+    }
+
+    callData.push({
+      tool: entry.name,
+      foundBySearch,
+      gateDecision: permitted ? "permit" : "deny",
+      denyReason: permitted ? "" : decision.permissionDecisionReason,
+      invoked,
+      profileBefore: profileBeforeCall,
+      profileAfter: governed.profile.name,
+    });
+  }
+
+  console.log("\nTool search call report:");
+  console.table(callData);
+
+  assert.deepEqual(
+    callData.map((row) => [row.tool, row.foundBySearch, row.gateDecision, row.invoked]),
+    [
+      ["internal-data-search_internal_docs", true, "permit", true],
+      ["internal-data-get_confidential_demo_data", false, "deny", false],
+      ["internal-data-get_internal_demo_data", true, "permit", true],
+      ["web_search", true, "permit", true],
+    ]
+  );
+  assert.equal(callData[1].profileBefore, "public", "the unreachable classification must be checked before any upgrade happens");
+  assert.equal(callData[2].profileAfter, "internal", "calling the internal-classified tool should upgrade the session");
+  assert.equal(governed.profile.name, "internal", "the confidential-classified tool was never callable, so the session never reached confidential");
+});
+
+

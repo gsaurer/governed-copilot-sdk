@@ -62,3 +62,18 @@ A tool search query therefore only ever returns tools the session could actually
 | 300 | 43,895 | 2,248 | 95% |
 
 The "with search" cost stays roughly flat because it's dominated by the fixed cost of the inlined (non-deferred) tools plus one search call's results, not by the total catalog size. For an exact, non-heuristic figure, read the SDK's real context/usage RPC events from a live session instead of this estimate.
+
+## Call data, not just token math
+
+Token estimates alone don't prove the feature behaves correctly. [`test/governedSession.test.mjs`](../nodejs/test/governedSession.test.mjs)'s "tool search call report" test drives a representative catalog (an unclassified tool, a classification the active profile can't reach, one it can, and a built-in that carries MCP metadata too) through the full discover → gate → invoke path and prints the outcome of each:
+
+```text
+tool                                       | foundBySearch | gateDecision | invoked | profileBefore | profileAfter
+internal-data-search_internal_docs         | true          | permit       | true    | public        | public
+internal-data-get_confidential_demo_data   | false         | deny         | false   | public        | public
+internal-data-get_internal_demo_data       | true          | permit       | true    | public        | internal
+web_search                                 | true          | permit       | true    | internal      | internal
+```
+
+This confirms, with actual call outcomes rather than just counts: a tool hidden from search is also denied if called directly, a tool search surfaces is actually callable, and calling a classified tool upgrades the session exactly as it would for a directly-registered (non-deferred) tool.
+
